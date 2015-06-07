@@ -6,6 +6,8 @@ $( function() {
   var url = $addr + $action_name + "?json=" + $pathname.substring( 1 );
 */
 
+  /* Initialize tabs */
+
   $( "#tabs" ).tabs( { 
     beforeLoad: function( event, ui ) {
       ui.jqXHR.fail( function() {

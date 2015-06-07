@@ -10,10 +10,11 @@ use strict;
 use common::sense;
 use AnyEvent;
 use HTTP::Body ();
-use JSON::XS ();
+use JSON::XS qw( encode_json );
 use Math::BigInt ();
 use Local::DB::UnQLite;
 use vars qw( $PROGRAM_NAME );
+
 
 # body checks
 my $MIN_BODY_SIZE = 4;
@@ -28,25 +29,27 @@ my @HEADER_PLAIN =
 ( 
   'Content-Type' => 'text/plain',
 );
-#my @ERRORS =
-#(
-#  'No error',
-#  'Bad request',
-#  'Not implemented',
-#  '',
-#);
-
-sub NO_ERROR        { 0 }
-sub BAD_REQUEST     { 1 }
-sub NOT_IMPLEMENTED { 2 }
 
 # www dir with index.html (standalone mode)
 my $WWW_DIR = $ENV{ join( '_', uc( $PROGRAM_NAME ), 'WWW_DIR' ) };
+
+# set DB home for UnQLite module
+my $BASE_DIR = $ENV{ join( '_', uc( $PROGRAM_NAME ), 'BASEDIR' ) };
+&Local::DB::UnQLite::set_db_home( $BASE_DIR );
 
 
 =head1 FUNCTIONS
 
 =over 4
+
+=cut
+
+sub CONNECTION_ERROR  { 0 } # Connection error
+sub BAD_REQUEST       { 1 } # Bad request
+sub NOT_IMPLEMENTED   { 2 } # Not implemented
+sub EINT_ERROR        { 3 } # Internal error
+sub DUPLICATE_ENTRY   { 4 } # Duplicate entry in a database
+
 
 =item app( $request )
 
@@ -135,18 +138,30 @@ Stores data to DB by request. Actual value for data depends on $request.
 
 sub store_data($$$) {
   my $params = &get_params( @_ )
-    or return &JSON::XS::encode_json( { 'err' => &BAD_REQUEST() } );
+    or return encode_json( { 'err' => &BAD_REQUEST() } );
   
   AE::log trace => " %s => %s", $_, $params->{ $_ } for keys %$params;
 
   my %response = ( 'err' => &NOT_IMPLEMENTED() );
-  my $action = $params->{ 'action' } || "";
+  my $action = delete $params->{ 'action' } || "";
   
   if ( $action eq 'addApp' ) {
+    my $kv = $params->{ 'name' };
+    my $db = Local::DB::UnQLite->new( 'apps' );
     
+    if ( ! $db->fetch( $kv ) ) {
+      $db->store( $kv, encode_json( $params ) )
+        ? ( %response = ( 'id' => $kv ) )
+        : ( %response = ( 'err' => &EINT_ERROR() ) );
+    } else {
+      %response = ( 'err' => &DUPLICATE_ENTRY() );
+    }
+  } elsif ( $action eq 'wipeApps' ) {
+    my $num = Local::DB::UnQLite->new( 'apps' )->delete_all();
+    %response = ( 'wiped' => $num );
   }
   
-  return &JSON::XS::encode_json( \%response ); 
+  return encode_json( \%response ); 
 }
 
 =back

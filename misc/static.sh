@@ -1,7 +1,7 @@
 #!/bin/sh
 
 APPNAME="plwrd"
-STRIP="ppi"
+STRIP="none"
 LINKTYPE="static" # "allow-dynamic"
 
 . ~/.staticperlrc

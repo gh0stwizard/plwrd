@@ -11,63 +11,143 @@ UnQLite database interface for simple apps.
 use strict;
 use UnQLite;
 use Encode ();
-use File::Spec::Functions ();
+use File::Spec::Functions qw( catfile canonpath );
 
-our $VERSION = '0.002'; $VERSION = eval $VERSION;
 
-my $BASEDIR = ( exists $ENV{ 'PLWRD_BASEDIR' } )
-  ? $ENV{ 'PLWRD_BASEDIR' }
-  : '.'
-;
+our $VERSION = '1.000'; $VERSION = eval $VERSION;
 
-my $INSTANCE;
+
+=head1 FUNCTIONS
+
+=over 4
+
+=item initdb( $name )
+
+Initialize database instance. Creates database with a
+file name "<DB_HOME>/$name.db". Where is <DB_HOME> is
+value returned by function get_db_home().
+
+A value $name should not contains any file extention.
+The file name extention is hardcoded and always equals
+to ".db".
+
+=cut
 
 {
-#
-# keep db open all the time
-#
-  my $db_file = &File::Spec::Functions::catfile( $BASEDIR, 'plwrd.db' );
-  my $db_flags = &UnQLite::UNQLITE_OPEN_READWRITE();
+  my %DBS;
   
-  #
-  # UnQLite <= 0.05 does not check file permissions
-  # and does not throw errors.
-  #
-  # We must be sure that able to open (read, write) file.
-  #
-  if ( -e $db_file ) {
-    # file exists, check perms
-    unless ( -r $db_file && -w $db_file && -o $db_file ) {
-      die "Check permissions on $db_file: $!";
-    }
-  } else {
-    # file does not exists, try to create file
-    open ( my $fh, ">", $db_file )
-      or die "Failed to open $db_file: $!";
-    syswrite( $fh, "test\n", 5 )
-      or die "Failed to write $db_file: $!";
-    close( $fh )
-      or die "Failed to close $db_file: $!";
-    open ( my $fh, "<", $db_file )
-      or die "Failed to open $db_file: $!";    
-    sysread( $fh, my $buf, 5 )
-      or die "Failed to read $db_file: $!";
-    close( $fh )
-      or die "Failed to close $db_file: $!";
-    unlink( $db_file )
-      or die "Failed to remove $db_file: $!";
+  sub new {
+    my ( $class, $name ) = @_;
     
-    # auto create database file
-    $db_flags |= &UnQLite::UNQLITE_OPEN_CREATE();
+    my $self = bless \$name, $class;
+    &initdb( $name ) if ( not exists $DBS{ $name } );
+    
+    return $self;
   }
+
+  sub initdb($) {
+    my $name = shift || "none";
+    
+    #
+    # UnQLite <= 0.05 does not check file permissions
+    # and does not throw errors about that.
+    #
+    # We have to be sure that able to open (read, write) file.
+    #
+
+    my $db_home = &get_db_home();
+    my $db_file = catfile( $db_home, "${name}.db" );
+    my $db_flags = &UnQLite::UNQLITE_OPEN_READWRITE();
   
-  $INSTANCE = UnQLite->open( $db_file, $db_flags );
+    if ( -e $db_file ) {
+      # file exists, check perms
+      unless ( -r $db_file && -w $db_file && -o $db_file ) {
+        die "Check permissions on $db_file: $!";
+      }
+    } else {
+      # file does not exists, try to create file
+      open ( my $fh, ">", $db_file )
+        or die "Failed to open $db_file: $!";
+      close( $fh )
+        or die "Failed to close $db_file: $!";
+      unless ( -r $db_file && -w $db_file && -o $db_file ) {
+        die "Check permissions on $db_file: $!";
+      }
+      unlink( $db_file )
+        or die "Failed to remove $db_file: $!";
+
+      # auto create database file
+      $db_flags |= &UnQLite::UNQLITE_OPEN_CREATE();
+    }
+  
+    $DBS{ $name } = UnQLite->open( $db_file, $db_flags );
+    return $DBS{ $name };
+  }
+
+=item closedb( $name )
+
+Closes a database handler identified by $name.
+
+=cut
+
+  sub closedb($) {
+    my $name = shift || "none";
+  
+    delete $DBS{ $name };
+    return;
+  }
+
+=item closealldb()
+
+Closes database handlers.
+
+=cut
+
+  sub closealldb() {
+    delete $DBS{ $_ } for keys %DBS;
+    return;
+  }
+
+  sub _get_instance($) {
+    return $DBS{ "$_[0]" } if exists $DBS{ "$_[0]" };
+    return;
+  }
 }
 
+=item get_db_home()
+
+Returns DB home directory. Default is ".";
+
+=cut
+
+{
+  my $DB_HOME_DIR = '.';
+
+  sub get_db_home() {
+    return canonpath( $DB_HOME_DIR );
+  }
+
+=item set_db_home( $string )
+
+Sets DB home directory to specified value $string.
+
+=cut
+  
+  sub set_db_home($) {
+    $DB_HOME_DIR = "$_[0]" if ( $_[0] );
+  }
+}
+
+=back
 
 =head1 METHODS
 
 =over 4
+
+=item new( $name )
+
+Creates or returns existing dabatase instance object.
+See opendb() function for details.
 
 =item store( $key, $value )
 
@@ -75,11 +155,12 @@ Calls kv_store( $key, $value ).
 
 =cut
 
-sub store($$) {
-  #my ( $post_id, $data ) = @_;
+sub store($$$) {
+  #my ( $self, $post_id, $data ) = @_;
   
+  my $db = _get_instance ${ $_[0] };
   # returns 1 if success or undef if failed
-  return $INSTANCE->kv_store( $_[0], $_[1] );
+  return $db->kv_store( $_[1], $_[2] );
 }
 
 =item fetch( $key )
@@ -89,9 +170,10 @@ Calls kv_fetch( $key).
 =cut
 
 sub fetch($) {
-  #my ( $post_id ) = @_;
+  #my ( $self, $post_id ) = @_;
   
-  return &Encode::decode_utf8( $INSTANCE->kv_fetch( $_[0] ) );
+  my $db = _get_instance ${ $_[0] };
+  return &Encode::decode_utf8( $db->kv_fetch( $_[1] ) );
 }
 
 =item delete_all()
@@ -100,8 +182,9 @@ Deletes all entries from database.
 
 =cut
 
-sub delete_all() {
-  my $cursor = $INSTANCE->cursor_init();
+sub delete_all($) {
+  my $db = _get_instance ${ $_[0] };
+  my $cursor = $db->cursor_init();
 
   my $num_deleted = 0;  
   for ( $cursor->first_entry();
@@ -121,8 +204,9 @@ Returns a number of entries stored in a database.
 
 =cut
 
-sub entries() {
-  my $cursor = $INSTANCE->cursor_init();
+sub entries($) {
+  my $db = _get_instance ${ $_[0] };
+  my $cursor = $db->cursor_init();
   
   my $entries = 0;
   for ( $cursor->first_entry();

@@ -16,15 +16,20 @@ $(function() {
   var $action = $( "#addAppForm" ).attr( "action" );
   var $title_done = 'Done!';
   var $title_error = 'An error has occured';
-  var $icon_notice = '<span class="ui-icon ui-icon-notice" style="float:left; margin:0 7px 50px 0;"></span>';
+  var $icon_notice = '<span class="ui-icon ui-icon-notice" style="float:left; margin:3px 7px 50px 0;"></span>';
+  var $icon_alert = '<span class="ui-icon ui-icon-alert" style="float:left; margin:3px 7px 50px 0;"></span>';
+  var $icon_check = '<span class="ui-icon ui-icon-check" style="float:left; margin:3px 7px 50px 0;"></span>';
   var $errors = [
     "<p>" + $icon_notice + "Connection error. Try again later.</p>",
     "<p>" + $icon_notice + "Bad request</p>",
-    "<p>" + $icon_notice + "Not implemented yet</p>"
+    "<p>" + $icon_notice + "Not implemented yet</p>",
+    "<p>" + $icon_notice + "Internal error</p>",
+    "<p>" + $icon_notice + "Duplicate entry</p>"
   ];
 
   var dialog, form,
     table = $( "table" ),
+    tbody = $( "table tbody" ),
     name = $( "#name" ),
     user = $( "#user" ),
     cmd = $( "#cmd" ),
@@ -69,7 +74,32 @@ $(function() {
       }
     } );
     
-    m.append( $.parseHTML( text ) ).dialog( "open" );
+    m.append( text ).dialog( "open" );
+  }
+  
+  function confirmDialog( text, callback ) {
+    var d = $( "#yesno" ).dialog( {
+      dialogClass : "no-close",
+      autoOpen : false,
+      modal : true,
+      width : 400,
+      height : 250,
+      buttons : {
+        Confirm : function() {
+          callback();
+          $( this ).dialog( "close" );
+        },
+        Cancel : function() {
+          $( this ).dialog( "close" );
+        }
+      },
+      close : function() {
+        $( "#yesno" ).empty();
+      }
+    } );
+    
+    var t = "<p>" + $icon_alert + text + "</p>";
+    d.append( t ).dialog( "open" );
   }
 
   function createApp() {
@@ -93,7 +123,8 @@ $(function() {
       } )
       .done( function ( data, textStatus, jqXHR ) {
         if ( data.id ) {
-          showMessage( $title_done, data.id );
+          addEntryIntoTable( name, user, cmd );
+          dialog.dialog( "close" );
         } else {
           showMessage( $title_error, $errors[ data.err ] );
         }
@@ -104,6 +135,24 @@ $(function() {
     }
 
     return valid;
+  }
+  
+  function addEntryIntoTable( n, u, c ) {
+    tbody.append( '<tr><td>' + n.val()
+      + '</td><td>' + u.val()
+      + '</td><td>' + c.val() + '</td></tr>' );
+    table.trigger( "update", [ true ] );
+  }
+  
+  function loadEntries() {
+    tbody.empty();
+    // TODO
+  }
+  
+  function flushTable() {
+    tbody.empty();
+    table.trigger( "update", [ true ] );
+    return false;
   }
 
   dialog = $( "#add-form" ).dialog( {
@@ -130,13 +179,48 @@ $(function() {
     event.preventDefault();
     createApp();
   } );
+  
+  /*
+   * Initialize buttons
+   *
+   */
 
   $( "#create-app" )
     .button( {
-      icons: { primary: "ui-icon-triangle-1-e" }
+      icons: { primary: "ui-icon-plus" }
     } )
     .on( "click", function() {
       dialog.dialog( "open" );
+    } );
+    
+  $( "#wipe-apps" )
+    .button( {
+      icons: { primary: "ui-icon-trash" }
+    } )
+    .on( "click", function() {
+      var msg = "This action will wipes all records from the server. Continue?";
+
+      confirmDialog( msg, function() {
+        $.ajax( {
+          url: $addr + $action,
+          type: "POST",
+          async: false,
+          data: { action: "wipeApps" },
+          dataType: "json",
+          cache: false,
+        } )
+        .done( function ( data, textStatus, jqXHR ) {
+          flushTable();
+
+          var msg = "<p>" + $icon_check + "Wiped " + data.wiped + " record(s).</p>";
+          showMessage( $title_done, msg );
+        } )
+        .fail( function ( xhr, textStatus, errorThrown ) {
+          showMessage( $title_error, $errors[ 0 ] );
+        } );
+       
+        return false;
+      } );
     } );
   
   /*
@@ -179,7 +263,7 @@ $(function() {
     theme : 'jui', // theme "jui" and "bootstrap" override the uitheme widget option in v2.7+
     headerTemplate : '{content} {icon}', // needed to add icon for jui theme
     // widget code now contained in the jquery.tablesorter.widgets.js file
-    widgets : ['uitheme', 'zebra'],
+    widgets : [ 'uitheme', 'zebra' ],
     widgetOptions : {
       // zebra striping class names - the uitheme widget adds the class names defined in
       // $.tablesorter.themes to the zebra widget class names
@@ -214,6 +298,7 @@ $(function() {
 </div>
 
 <button id="create-app">Add</button>
+<button id="wipe-apps">Wipe</button>
 
 <table class="tablesorter">
   <thead>
@@ -229,3 +314,6 @@ $(function() {
 
 <!-- dialog window with error, notification messages //-->
 <div id="message" title="Message window"></div>
+
+<!-- yes/no dialog //-->
+<div id="yesno" title="Confirmation"></div>
