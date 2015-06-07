@@ -59,7 +59,7 @@ Allowed options:
   --help [-h]              prints this information
   --version                prints program version
   --listen [-l] arg        IP:PORT for listener
-                           - default: "127.0.0.1:28950"
+                           - default: "127.0.0.1:28990"
   --backend [-b] arg       backend name (default: feersum)
   --app [-a] arg           application name (default: feersum)
   --background [-B]        run process in background
