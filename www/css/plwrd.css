@@ -1,0 +1,8 @@
+body {
+  background-color: black;
+}
+
+/* hide close button/icon in dialogs */
+.no-close .ui-dialog-titlebar-close {
+  display: none;
+}

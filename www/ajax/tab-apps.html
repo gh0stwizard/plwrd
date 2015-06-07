@@ -1,0 +1,231 @@
+<style>
+  label, input { display:block; }
+  input.text { margin-bottom:12px; width:95%; padding: .4em; }
+  fieldset { padding:0; border:0; margin-top:25px; }
+  .validateTips { border: 1px solid transparent; padding: 0.3em; }
+</style>
+
+<script>
+$(function() {
+  /*
+   *
+   * "Add" button setup
+   *
+   */
+  var $addr = window.location.protocol + '//' + window.location.host;
+  var $action = $( "#addAppForm" ).attr( "action" );
+  var $title_done = 'Done!';
+  var $title_error = 'An error has occured';
+  var $icon_notice = '<span class="ui-icon ui-icon-notice" style="float:left; margin:0 7px 50px 0;"></span>';
+  var $errors = [
+    "<p>" + $icon_notice + "Connection error. Try again later.</p>",
+    "<p>" + $icon_notice + "Bad request</p>",
+    "<p>" + $icon_notice + "Not implemented yet</p>"
+  ];
+
+  var dialog, form,
+    table = $( "table" ),
+    name = $( "#name" ),
+    user = $( "#user" ),
+    cmd = $( "#cmd" ),
+    allFields = $( [] ).add( name ).add( user).add( cmd ),
+    tips = $( ".validateTips" );
+    
+  function updateTips( t ) {
+    tips
+      .text( t )
+      .addClass( "ui-state-highlight" );
+    setTimeout( function() {
+      tips.removeClass( "ui-state-highlight", 1500 );
+    }, 500 );
+  }
+ 
+  function checkLength( o, n, min, max ) {
+    if ( o.val().length > max || o.val().length < min ) {
+      o.addClass( "ui-state-error" );
+      updateTips( "Length of " + n + " must be between " 
+                + min + " and " + max + "." );
+      return false;
+    } else {
+      return true;
+    }
+  }
+  
+  function showMessage( title, text ) {
+    var m = $( "#message" ).dialog( {
+      dialogClass: "no-close",
+      autoOpen: false,
+      modal : true,
+      title : title,
+      width : 400,
+      height : 250,
+      buttons : {
+        Ok : function() {
+          $( this ).dialog( "close" );
+        }
+      },
+      close : function() {
+        $( "#message" ).empty();
+      }
+    } );
+    
+    m.append( $.parseHTML( text ) ).dialog( "open" );
+  }
+
+  function createApp() {
+    var self = $( this );
+
+    var valid = true;
+    allFields.removeClass( "ui-state-error" );
+    
+    valid = valid && checkLength( name, "name", 2, 16 );
+    valid = valid && checkLength( user, "user", 1, 16 );
+    valid = valid && checkLength( cmd, "command", 1, 256 );
+        
+    if ( valid ) {
+      $.ajax( {
+        url: $addr + $action,
+        type: "POST",
+        async: false,
+        data: $( "#addAppForm" ).serialize(),
+        dataType: "json",
+        cache: false,
+      } )
+      .done( function ( data, textStatus, jqXHR ) {
+        if ( data.id ) {
+          showMessage( $title_done, data.id );
+        } else {
+          showMessage( $title_error, $errors[ data.err ] );
+        }
+      } )
+      .fail( function ( xhr, textStatus, errorThrown ) {
+        showMessage( $title_error, $errors[ 0 ] );
+      } );
+    }
+
+    return valid;
+  }
+
+  dialog = $( "#add-form" ).dialog( {
+    dialogClass: "no-close",
+    autoOpen: false,
+    heigth: 300,
+    width: 350,
+    maxWidth: 600,
+    modal: true,
+    buttons: {
+      "Create" : createApp,
+      "Cancel" : function() {
+        dialog.dialog( "close" );
+      }
+    },
+    close: function() {
+      form[ 0 ].reset();
+      tips.text( "All form fields are required." );
+      allFields.removeClass( "ui-state-error" );
+    }
+  } );
+
+  form = dialog.find( "form" ).on( "submit", function( event ) {
+    event.preventDefault();
+    createApp();
+  } );
+
+  $( "#create-app" )
+    .button( {
+      icons: { primary: "ui-icon-triangle-1-e" }
+    } )
+    .on( "click", function() {
+      dialog.dialog( "open" );
+    } );
+  
+  /*
+   *
+   * Apllications table setup
+   *
+   */
+
+  // Extend the themes to change any of the default class names
+  $.extend( $.tablesorter.themes.jui, {
+    // change default jQuery uitheme icons - find the full list of icons at
+    // http://jqueryui.com/themeroller/ (hover over them for their name)
+    table        : 'ui-widget ui-widget-content ui-corner-all', // table classes
+    caption      : 'ui-widget-content',
+    // header class names
+    header       : 'ui-widget-header ui-corner-all ui-state-default', // header classes
+    sortNone     : '',
+    sortAsc      : '',
+    sortDesc     : '',
+    active       : 'ui-state-active', // applied when column is sorted
+    hover        : 'ui-state-hover',  // hover class
+    // icon class names
+    icons        : 'ui-icon', // icon class added to the <i> in the header
+    iconSortNone : 'ui-icon-carat-2-n-s', // class name added to icon when column is not sorted
+    iconSortAsc  : 'ui-icon-carat-1-n', // class name added to icon when column has ascending sort
+    iconSortDesc : 'ui-icon-carat-1-s', // class name added to icon when column has descending sort
+    filterRow    : '',
+    footerRow    : '',
+    footerCells  : '',
+    even         : 'ui-widget-content', // even row zebra striping
+    odd          : 'ui-state-default'   // odd row zebra striping
+  } );
+
+  // call the tablesorter plugin and apply the ui theme widget
+  table.tablesorter( {
+    widthFixed: false,
+    sortList: [
+      [ 0, 0 ],
+    ],
+    theme : 'jui', // theme "jui" and "bootstrap" override the uitheme widget option in v2.7+
+    headerTemplate : '{content} {icon}', // needed to add icon for jui theme
+    // widget code now contained in the jquery.tablesorter.widgets.js file
+    widgets : ['uitheme', 'zebra'],
+    widgetOptions : {
+      // zebra striping class names - the uitheme widget adds the class names defined in
+      // $.tablesorter.themes to the zebra widget class names
+      zebra   : ["even", "odd"],
+      // set the uitheme widget to use the jQuery UI theme class names
+      // ** this is now optional, and will be overridden if the theme name exists in $.tablesorter.themes **
+      // uitheme : 'jui'
+    }
+  } );
+    
+} ); // document.ready
+</script>
+
+
+<div id="add-form" title="Add new application">
+  <p class="validateTips">All form fields are required.</p>
+
+  <form action="/plwrd" method="post" id="addAppForm">
+    <fieldset>
+      <label for="name">Name</label>
+      <input type="text" name="name" id="name" value="ls" 
+            class="text ui-widget-content ui-corner-all">
+      <label for="user">User</label>
+      <input type="text" name="user" id="user" value="root"
+            class="text ui-widget-content ui-corner-all">
+      <label for="cmd">Command</label>
+      <input type="text" name="cmd" id="cmd" value="/bin/ls"
+            class="text ui-widget-content ui-corner-all">
+      <input type="hidden" name="action" value="addApp">
+    </fieldset>
+  </form>
+</div>
+
+<button id="create-app">Add</button>
+
+<table class="tablesorter">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>User</th>
+      <th>Application</th>
+    </tr>
+  </thead>
+  <!-- data placeholder //-->
+  <tbody></tbody>
+</table>
+
+<!-- dialog window with error, notification messages //-->
+<div id="message" title="Message window"></div>
