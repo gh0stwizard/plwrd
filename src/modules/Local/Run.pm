@@ -52,6 +52,7 @@ $AnyEvent::Log::LOG->fmt_cb
 
 $AnyEvent::Log::LOG->log_cb( sub { } );
 
+
 =head1 FUNCTIONS
 
 =over 4
