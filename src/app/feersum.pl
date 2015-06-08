@@ -1,3 +1,15 @@
+#!/usr/bin/perl
+
+#
+# Workaround for AnyEvent::Fork->new():
+#  Instead of using a Proc::FastSpawn::spawn() call
+#  just fork the current process.
+#  
+#  Creates parent, template process.
+#
+use AnyEvent::Fork::Early;
+my $PREFORK = AnyEvent::Fork->new();
+
 =encoding utf-8
 
 =head1 NAME
@@ -10,8 +22,7 @@ use strict;
 use common::sense;
 use AnyEvent;
 use HTTP::Body ();
-use JSON::XS qw( encode_json );
-use Math::BigInt ();
+use JSON::XS qw( encode_json decode_json );
 use Local::DB::UnQLite;
 use vars qw( $PROGRAM_NAME );
 
@@ -49,6 +60,7 @@ sub BAD_REQUEST       { 1 } # Bad request
 sub NOT_IMPLEMENTED   { 2 } # Not implemented
 sub EINT_ERROR        { 3 } # Internal error
 sub DUPLICATE_ENTRY   { 4 } # Duplicate entry in a database
+sub NOT_FOUND         { 5 } # Not found
 
 
 =item app( $request )
@@ -150,6 +162,7 @@ sub store_data($$$) {
     my $db = Local::DB::UnQLite->new( 'apps' );
     
     if ( ! $db->fetch( $kv ) ) {
+      # using 'name' parameter as unique key
       $db->store( $kv, encode_json( $params ) )
         ? ( %response = ( 'id' => $kv ) )
         : ( %response = ( 'err' => &EINT_ERROR() ) );
@@ -157,8 +170,32 @@ sub store_data($$$) {
       %response = ( 'err' => &DUPLICATE_ENTRY() );
     }
   } elsif ( $action eq 'wipeApps' ) {
+    # remove all entries from apps.db
     my $num = Local::DB::UnQLite->new( 'apps' )->delete_all();
     %response = ( 'wiped' => $num );
+  } elsif ( $action eq 'runApp' ) {
+    # run application
+    my $kv = $params->{ 'name' };
+
+    if ( my $data = Local::DB::UnQLite->new( 'apps' )>fetch( $kv ) ) {
+      AE::log trace => "%s: %s", $kv, decode_json( $data );
+      #
+      # TODO: run program
+      #
+      my $rv = 0; # program return value ( 0..255 )
+      my $stdout = 'TODO';
+      my $stderr = 'TODOTODO';
+      
+      %response =
+      (
+        'name'    => $kv,
+        'rv'      => $rv,
+        'stdout'  => $stdout,
+        'stderr'  => $stderr,
+      );
+    } else {
+      %response = ( 'err' => &NOT_FOUND() );
+    }
   }
   
   return encode_json( \%response ); 

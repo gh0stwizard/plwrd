@@ -3,6 +3,18 @@
 # This is free software; you can redistribute it and/or modify it
 # under the same terms as the Perl 5 programming language system itself.
 
+#
+# Workaround for AnyEvent::Fork->new() + staticperl:
+#  Instead of using a Proc::FastSpawn::spawn() call
+#  just fork the current process.
+#  
+#  Creates parent, template process.
+#
+use AnyEvent::Fork::Early;
+my $PREFORK = AnyEvent::Fork->new();
+
+# there is 'main' program starts
+
 use strict;
 use common::sense;
 use Feersum;
@@ -21,6 +33,8 @@ my %DEFAULT_SETTINGS =
   'APP_NAME'  => 'app+feersum.pl',
   'SOMAXCONN' => &Socket::SOMAXCONN(),
   'PIDFILE'   => '',
+  'MAXPROC'   => 8, # max. number of forked processes
+  'MAXLOAD'   => 2, # max. number of queued queries per worker process
 );
 
 
@@ -59,6 +73,51 @@ my %DEFAULT_SETTINGS =
 }
 
 &EV::run();
+
+# ---------------------------------------------------------------------
+
+{
+  my $pool; # AnyEvent::Fork::Pool object reference
+  my %queue;
+
+  sub create_pool() {
+    my $max_proc = $CURRENT_SETTINGS{ 'MAXPROC' };
+    my $max_load = $CURRENT_SETTINGS{ 'MAXLOAD '};
+  
+    $pool = $PREFORK->require( "Local::Run" )->AnyEvent::Fork::Pool::run
+      (
+        "Local::Run::execute",
+        max   => ( scalar AnyEvent::Fork::Pool::ncpu( $max_proc ) ),
+        idle  => int( $max_proc / 2 ) || 1,
+        load  => $max_load,
+        start => 0.1,
+        stop  => 10,
+        async => 0,
+        serializer => $AnyEvent::Fork::RPC::JSON_SERIALISER,
+        on_error => \&_pool_error_cb,
+        on_event => \&_pool_event_cb,
+        on_destroy => \&_pool_destroy_cb,
+      )
+    ;
+    
+    return;
+  }
+  
+  sub _pool_error_cb {
+    AE::log crit => "pool: @_";
+    undef $pool;
+  }
+
+  sub _pool_event_cb {
+    # using on_event as logger
+    AE::log $_[0] => $_[1];
+  }
+  
+  sub _pool_destroy_cb {
+    AE::log alert => "pool has been destroyed";
+  }
+}
+
 
 # ---------------------------------------------------------------------
   

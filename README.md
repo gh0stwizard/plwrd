@@ -22,10 +22,13 @@ via CPAN or other Perl package management system:
 * JSON::XS
 * File::Spec
 * Getopt::Long
-* Math::BigInt
 * UnQLite
-* MIME::Type::FileName
 * Sys::Syslog (optional)
+* IO::FDPass
+* Proc::FastSpawn
+* AnyEvent::Fork
+* AnyEvent::Fork::RPC
+* AnyEvent::Fork::Pool
 
 # Usage
 

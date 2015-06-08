@@ -13,7 +13,7 @@ use File::Spec::Functions ();
 use vars qw( $PROGRAM_NAME $VERSION );
 
 
-$PROGRAM_NAME = "plwrd"; $VERSION = '0.01';
+$PROGRAM_NAME = "plwrd"; $VERSION = '0.02';
 
 
 my $retval = GetOptions

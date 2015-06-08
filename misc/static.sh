@@ -8,6 +8,7 @@ LINKTYPE="static" # "allow-dynamic"
 
 ~/staticperl mkapp bin/$APPNAME --boot ../src/main.pl \
 -Msort.pm \
+-Mfeature.pm \
 -Mvars \
 -Mutf8 \
 -Mutf8_heavy.pl \
@@ -38,6 +39,11 @@ LINKTYPE="static" # "allow-dynamic"
 -MMIME::Type::FileName \
 -MUnQLite \
 -MMath::BigInt \
+-MIO::FDPass \
+-MProc::FastSpawn \
+-MAnyEvent::Fork \
+-MAnyEvent::Fork::RPC \
+-MAnyEvent::Fork::Pool \
 --strip ${STRIP} \
 --${LINKTYPE} \
 --usepacklists \
