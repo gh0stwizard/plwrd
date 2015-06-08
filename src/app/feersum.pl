@@ -5,10 +5,11 @@
 #  Instead of using a Proc::FastSpawn::spawn() call
 #  just fork the current process.
 #  
-#  Creates parent, template process.
+#  Creates a parent, template process.
 #
 use AnyEvent::Fork::Early;
 my $PREFORK = AnyEvent::Fork->new();
+
 
 =encoding utf-8
 
@@ -17,6 +18,7 @@ my $PREFORK = AnyEvent::Fork->new();
 Feersum application for plwrd
 
 =cut
+
 
 use strict;
 use common::sense;
@@ -70,6 +72,7 @@ request object $request.
 
 =cut
 
+
 sub app {
   my ( $req ) = @_;
 
@@ -77,6 +80,7 @@ sub app {
   my $method = $env->{ 'REQUEST_METHOD' };
 
   if ( $method eq 'POST' ) {
+    # POST methods are using to store data to a database
     my $type = $env->{ 'CONTENT_TYPE' };
     my $len = $env->{ 'CONTENT_LENGTH' };
     my $r = delete $env->{ 'psgi.input' };
@@ -85,6 +89,7 @@ sub app {
     $w->write( &store_data( $r, $len, $type ) );
     $w->close();
   } elsif ( $method eq 'GET' ) {
+    # GET methods are using to retrieve data from a database
     if ( my $query = $env->{ 'QUERY_STRING' } ) {
       AE::log trace => "query: %s", $query;
 
@@ -97,8 +102,12 @@ sub app {
       #}
     } else {
       # when working standalone, i.e. without nginx
+
+      # TODO: test code below (should work)
+      #
       #require Local::Feersum::Tiny;
       #&Local::Feersum::Tiny::send_file( $WWW_DIR, $req );
+
       &_500( $req );
     }
   } else {
@@ -108,12 +117,14 @@ sub app {
   return;
 }
 
+
 =item get_params( $request, $length, $content_type )
 
 Reads HTTP request body. Returns hash reference with request parameters.
 A key represents a name of parameter and it's value represents an actual value.
 
 =cut
+
 
 sub get_params($$$) {
   my ( $r, $len, $content_type ) = @_;
@@ -142,11 +153,13 @@ sub get_params($$$) {
   return $body->param();
 }
 
+
 =item store_data( $request, $length, $content_type )
 
 Stores data to DB by request. Actual value for data depends on $request.
 
 =cut
+
 
 sub store_data($$$) {
   my $params = &get_params( @_ )
@@ -169,37 +182,72 @@ sub store_data($$$) {
     } else {
       %response = ( 'err' => &DUPLICATE_ENTRY() );
     }
+  } elsif ( $action eq 'delApp' ) {
+    my $kv = $params->{ 'name' };
+    my $db = Local::DB::UnQLite->new( 'apps' );
+    
+    if ( $db->fetch( $kv ) ) {
+      $db->delete( $kv )
+        ? ( %response = ( 'id' => $kv ) )
+        : ( %response = ( 'err' => &EINT_ERROR() ) );
+    } else {
+      %response = ( 'err' => &NOT_FOUND() );
+    }    
   } elsif ( $action eq 'wipeApps' ) {
     # remove all entries from apps.db
     my $num = Local::DB::UnQLite->new( 'apps' )->delete_all();
     %response = ( 'wiped' => $num );
-  } elsif ( $action eq 'runApp' ) {
+  }
+  
+  return encode_json( \%response ); 
+}
+
+
+=item retrieve_data( $request, $action, $key )
+
+Virtual function: retrieves data from a database, performs action.
+
+When possible returns data immediatly, when not returns nothing.
+
+=cut
+
+
+sub retrieve_data(@) {
+  my ( $r, $action, $kv ) = @_;
+  
+  my %response = ( 'err' => &NOT_IMPLEMENTED() );
+  
+  if ( $action eq 'runApp' ) {  
     # run application
-    my $kv = $params->{ 'name' };
 
     if ( my $data = Local::DB::UnQLite->new( 'apps' )>fetch( $kv ) ) {
-      AE::log trace => "%s: %s", $kv, decode_json( $data );
+      AE::log trace => "%s: %s", $kv, $data;
       #
-      # TODO: run program
+      # TODO: $pool->execute( $data->{ 'cmd' }, ... )
       #
-      my $rv = 0; # program return value ( 0..255 )
-      my $stdout = 'TODO';
-      my $stderr = 'TODOTODO';
+
+      #my $rv = 0; # program return value ( 0..255 )
+      #my $stdout = 'TODO';
+      #my $stderr = 'TODOTODO';
+
+      #%response =
+      #(
+      #  'name'    => $kv,
+      #  'rv'      => $rv,
+      #  'stdout'  => $stdout,
+      #  'stderr'  => $stderr,
+      #);
       
-      %response =
-      (
-        'name'    => $kv,
-        'rv'      => $rv,
-        'stdout'  => $stdout,
-        'stderr'  => $stderr,
-      );
+      # deffer response
+      return;
     } else {
       %response = ( 'err' => &NOT_FOUND() );
     }
   }
   
-  return encode_json( \%response ); 
+  return encode_json( \%response );
 }
+
 
 =back
 
@@ -210,6 +258,9 @@ Vitaliy V. Tokarev E<lt>vitaliy.tokarev@gmail.comE<gt>
 =head1 COPYRIGHT AND DISCLAIMER
 
 2015, gh0stwizard
+
+This is free software; you can redistribute it and/or modify it
+under the same terms as the Perl 5 programming language system itself.
 
 =cut
 

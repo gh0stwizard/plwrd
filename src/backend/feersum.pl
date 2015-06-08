@@ -3,6 +3,14 @@
 # This is free software; you can redistribute it and/or modify it
 # under the same terms as the Perl 5 programming language system itself.
 
+=encoding utf-8
+
+=head1 NAME
+
+Backend for plwrd program written with Feersum.
+
+=cut
+
 #
 # Workaround for AnyEvent::Fork->new() + staticperl:
 #  Instead of using a Proc::FastSpawn::spawn() call
@@ -23,8 +31,12 @@ use AnyEvent;
 use AnyEvent::Socket;
 use AnyEvent::Handle;
 use AnyEvent::Util ();
+use AnyEvent::Fork::RPC;
+use AnyEvent::Fork;
+use AnyEvent::Fork::Pool;
 use Socket ();
 use vars qw( $PROGRAM_NAME $VERSION );
+
 
 my %CURRENT_SETTINGS;
 my %DEFAULT_SETTINGS =
@@ -72,9 +84,17 @@ my %DEFAULT_SETTINGS =
   };
 }
 
-&EV::run();
-
 # ---------------------------------------------------------------------
+
+=head1 FUNCTIONS
+
+=over 4
+
+=item create_pool()
+
+Creates pool of worker processes.
+
+=cut
 
 {
   my $pool; # AnyEvent::Fork::Pool object reference
@@ -120,12 +140,21 @@ my %DEFAULT_SETTINGS =
 
 
 # ---------------------------------------------------------------------
+
+=item start_server()
+
+TBA
+
+=cut
+
   
 sub start_server() {
   &enable_syslog();
   &debug_settings();
   &update_settings();
   &write_pidfile();
+  
+  &create_pool();
   &start_httpd();
   
   AE::log note => "Listen on %s:%d, PID = %d",
@@ -134,11 +163,27 @@ sub start_server() {
   ;
 }
 
+
+=item shutdown_server()
+
+TBA
+
+=cut
+
+
 sub shutdown_server() {
   &unlink_pidfile();
   &stop_httpd();
   &EV::unloop();
 }
+
+
+=item reload_server()
+
+TBA
+
+=cut
+
 
 sub reload_server() {
   &reload_syslog();  
@@ -147,6 +192,14 @@ sub reload_server() {
 
   AE::log note => "Server restarted, PID = %d", $$;
 }
+
+
+=item update_settings()
+
+TBA
+
+=cut
+
 
 sub update_settings() {
   for my $var ( keys %DEFAULT_SETTINGS ) {
@@ -158,6 +211,14 @@ sub update_settings() {
     ;
   }
 }
+
+
+=item enable_syslog()
+
+TBA
+
+=cut
+
 
 sub enable_syslog() {
   my $facility = &get_syslog_facility() || return;
@@ -171,6 +232,14 @@ sub enable_syslog() {
     $facility,
   );
 }
+
+
+=item reload_syslog()
+
+TBA
+
+=cut
+
 
 sub reload_syslog() {
   my $facility = &get_syslog_facility() || return;
@@ -187,10 +256,25 @@ sub reload_syslog() {
   );
 }
 
+
+=item get_syslog_facility()
+
+TBA
+
+=cut
+
+
 sub get_syslog_facility() {
   $ENV{ 'PERL_ANYEVENT_LOG' } =~ m/syslog=([_\w]+)$/ or return;
   return "$1";
 }
+
+
+=item start_httpd()
+
+TBA
+
+=cut
 
 {
   my $Instance;
@@ -363,18 +447,18 @@ sub load_app() {
   return \&_500;
 }
 
-sub debug_settings() {
-#  AE::log debug => "INC[0] = %s", $INC[0];
-  
-  my @envopts = 
+sub debug_settings() {  
+  my @envopts =
   (
-#    'PERL_ANYEVENT_LOG',
     join( '_', uc( $PROGRAM_NAME ), 'WWW_DIR' ),
     join( '_', uc( $PROGRAM_NAME ), 'BASEDIR' ),
     join( '_', uc( $PROGRAM_NAME ), 'PIDFILE' ),
   );
+  
+  # print ENV values
   AE::log debug => "%s = %s", $_, $ENV{ $_ } || "" for ( @envopts );
   
+  # print program settings
   AE::log debug => "%s = %s", $_, $CURRENT_SETTINGS{ $_ }
     for ( sort keys %CURRENT_SETTINGS );  
 }
@@ -396,4 +480,20 @@ sub unlink_pidfile() {
     or AE::log error => "unlink pidfile %s: %s", $file, $!;
 }
 
-scalar "Gameboy Megamix!";
+
+=back
+
+=head1 AUTHOR
+
+Vitaliy V. Tokarev E<lt>vitaliy.tokarev@gmail.comE<gt>
+
+=head1 COPYRIGHT AND DISCLAIMER
+
+2015, gh0stwizard
+
+This is free software; you can redistribute it and/or modify it
+under the same terms as the Perl 5 programming language system itself.
+
+=cut
+
+EV::run; scalar "Gameboy Megamix!";

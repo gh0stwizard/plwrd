@@ -8,13 +8,14 @@ UnQLite database interface for simple apps.
 
 =cut
 
+
 use strict;
 use UnQLite;
 use Encode ();
 use File::Spec::Functions qw( catfile canonpath );
 
 
-our $VERSION = '1.000'; $VERSION = eval $VERSION;
+our $VERSION = '1.001'; $VERSION = eval $VERSION;
 
 
 =head1 FUNCTIONS
@@ -32,6 +33,7 @@ The file name extention is hardcoded and always equals
 to ".db".
 
 =cut
+
 
 {
   my %DBS;
@@ -84,11 +86,13 @@ to ".db".
     return $DBS{ $name };
   }
 
+
 =item closedb( $name )
 
 Closes a database handler identified by $name.
 
 =cut
+
 
   sub closedb($) {
     my $name = shift || "none";
@@ -97,11 +101,13 @@ Closes a database handler identified by $name.
     return;
   }
 
+
 =item closealldb()
 
 Closes database handlers.
 
 =cut
+
 
   sub closealldb() {
     delete $DBS{ $_ } for keys %DBS;
@@ -114,11 +120,13 @@ Closes database handlers.
   }
 }
 
+
 =item get_db_home()
 
 Returns DB home directory. Default is ".";
 
 =cut
+
 
 {
   my $DB_HOME_DIR = '.';
@@ -127,16 +135,19 @@ Returns DB home directory. Default is ".";
     return canonpath( $DB_HOME_DIR );
   }
 
+
 =item set_db_home( $string )
 
 Sets DB home directory to specified value $string.
 
 =cut
+
   
   sub set_db_home($) {
     $DB_HOME_DIR = "$_[0]" if ( $_[0] );
   }
 }
+
 
 =back
 
@@ -149,38 +160,59 @@ Sets DB home directory to specified value $string.
 Creates or returns existing dabatase instance object.
 See opendb() function for details.
 
-=item store( $key, $value )
+=item $rv = store( $key, $value )
 
-Calls kv_store( $key, $value ).
+Calls kv_store( $key, $value ). Returns true if successed.
 
 =cut
 
+
 sub store($$$) {
-  #my ( $self, $post_id, $data ) = @_;
+  #my ( $self, $key, $data ) = @_;
   
   my $db = _get_instance ${ $_[0] };
   # returns 1 if success or undef if failed
   return $db->kv_store( $_[1], $_[2] );
 }
 
-=item fetch( $key )
+
+=item $data = fetch( $key )
 
 Calls kv_fetch( $key).
 
 =cut
 
+
 sub fetch($) {
-  #my ( $self, $post_id ) = @_;
+  #my ( $self, $key ) = @_;
   
   my $db = _get_instance ${ $_[0] };
   return &Encode::decode_utf8( $db->kv_fetch( $_[1] ) );
 }
 
-=item delete_all()
+
+=item delete( $key )
+
+Delete entry specified by a key $key from a database.
+Calls kv_delete( $key ).
+
+=cut
+
+
+sub delete( $key ) {
+  #my ( $self, $key ) = @_;
+  
+  my $db = _get_instance ${ $_[0] };
+  return $db->kv_delete( $_[1] );
+}
+
+
+=item $num_deleted = delete_all()
 
 Deletes all entries from database.
 
 =cut
+
 
 sub delete_all($) {
   my $db = _get_instance ${ $_[0] };
@@ -198,11 +230,13 @@ sub delete_all($) {
   return $num_deleted;
 }
 
+
 =item entries()
 
 Returns a number of entries stored in a database.
 
 =cut
+
 
 sub entries($) {
   my $db = _get_instance ${ $_[0] };
@@ -218,6 +252,7 @@ sub entries($) {
   
   return $entries;
 }
+
 
 =back
 

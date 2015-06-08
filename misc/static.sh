@@ -51,4 +51,5 @@ LINKTYPE="static" # "allow-dynamic"
 --add "../src/backend/feersum.pl backend/feersum.pl" \
 --add "../src/modules/Local/DB/UnQLite.pm Local/DB/UnQLite.pm" \
 --add "../src/modules/Local/Feersum/Tiny.pm Local/Feersum/Tiny.pm" \
+--add "../src/modules/Local/Run.pm Local/Run.pm" \
 $@

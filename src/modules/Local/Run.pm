@@ -19,7 +19,10 @@ Execute programs with AnyEvent::Fork, AnyEvent::Fork::Pool!
   ;
   
   # execute command
-  $pool->( $cmd, @params );
+  $pool->( $cmd, @params, sub {
+    my ( $rv, $output ) = @_;
+
+  } );
 
 =cut
 
@@ -53,15 +56,16 @@ $AnyEvent::Log::LOG->log_cb( sub { } );
 
 =over 4
 
-=item execute( $command, [ @args ] )
+=item execute( $command, [ @args ], $cb )
 
 An interface for AnyEvent::Fork[::Pool] programs.
 Executes a command $command with arguments @args (if present).
+Calls a callback $cb when executing a program is finished.
 
 =cut
 
 
-sub execute(@) {
+sub execute(@ ) {
   AE::log trace => "PID=$$ executing:\n@_";
 
   &exec_cmd( @_ );
@@ -172,6 +176,9 @@ Vitaliy V. Tokarev E<lt>vitaliy.tokarev@gmail.comE<gt>
 =head1 COPYRIGHT AND DISCLAIMER
 
 2015, gh0stwizard
+
+This is free software; you can redistribute it and/or modify it
+under the same terms as the Perl 5 programming language system itself.
 
 =cut
 
