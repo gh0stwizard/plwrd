@@ -86,13 +86,11 @@ sub app {
     if ( my $query = $env->{ 'QUERY_STRING' } ) {
       AE::log trace => "query: %s", $query;
 
-      #if ( $query =~ /^json=(\w{1,16})$/ ) {
-      #  my $w = $req->start_streaming( 200, \@HEADER_JSON );
-      #  $w->write( &load_post( $1 ) );
-      #  $w->close();
-      #} else {
+      if ( $query =~ /^action=(\w{6,8})&name=(\w{1,16})$/o ) {
+        &retrieve_data( $req, $1, $2 );
+      } else {
         &_501( $req );
-      #}
+      }
     } else {
       # when working standalone, i.e. without nginx
 
@@ -234,12 +232,19 @@ sub retrieve_data(@) {
         ) );
         $w->close();
       };
-      
+
+      my $json = decode_json( $data );
       # see backend/feersum.pl
-      run( $data->{ 'cmd' }, $cb );
+      run( $json->{ 'cmd' }, $cb );
       
       # deffered response
       return;
+    } else {
+      %response = ( 'err' => &NOT_FOUND() );
+    }
+  } elsif ( $action eq 'getApp' ) {
+    if ( my $data = Local::DB::UnQLite->new( 'apps' )>fetch( $kv ) ) {
+      return $data;
     } else {
       %response = ( 'err' => &NOT_FOUND() );
     }
