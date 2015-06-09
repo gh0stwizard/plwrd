@@ -199,10 +199,10 @@ sub store_data($$$) {
 
 =item $json = B<retrieve_data>( $request, $action, $key )
 
-Virtual function: retrieves data from a database, performs action.
+Either retrieves data from a database or performs an action.
 
 When possible returns a JSON string immediatly, when not returns nothing,
-but later calls $request->write( $json ) by itself.
+but calls $request->write( $json ) by itself later.
 
 =cut
 
@@ -236,9 +236,9 @@ sub retrieve_data(@) {
       };
       
       # see backend/feersum.pl
-      pool_exec( $data->{ 'cmd' }, $cb );
+      run( $data->{ 'cmd' }, $cb );
       
-      # deffer response
+      # deffered response
       return;
     } else {
       %response = ( 'err' => &NOT_FOUND() );
