@@ -1,10 +1,13 @@
 package Local::Run;
 
+# This is free software; you can redistribute it and/or modify it
+# under the same terms as the Perl 5 programming language system itself.
+
 =encoding utf-8
 
 =head1 NAME
 
-Execute programs with AnyEvent::Fork, AnyEvent::Fork::Pool!
+Executing programs with AnyEvent::Fork, AnyEvent::Fork::Pool.
 
 =head1 SYNOPSYS
 
@@ -32,7 +35,7 @@ use AnyEvent::Log;
 use POSIX qw( :signal_h );
 
 
-our $VERSION = '1.001'; $VERSION = eval "$VERSION";
+our $VERSION = '1.002'; $VERSION = eval "$VERSION";
 
 
 # disable self logging.
@@ -43,7 +46,7 @@ $AnyEvent::Log::LOG->fmt_cb
     my ( $timestamp, $orig_ctx, $level, $message ) = @_;
 
     if ( defined &AnyEvent::Fork::RPC::event ) {
-      AnyEvent::Fork::RPC::event( $level, $message );
+      AnyEvent::Fork::RPC::event( $level, "PID = $$ " . $message );
     }
 
     AnyEvent::Log::default_format $timestamp, $orig_ctx, $level, $message;
@@ -57,7 +60,7 @@ $AnyEvent::Log::LOG->log_cb( sub { } );
 
 =over 4
 
-=item execute( $command, [ @args ], $cb )
+=item B<execute>( $command, [ @args ], $cb )
 
 An interface for AnyEvent::Fork[::Pool] programs.
 Executes a command $command with arguments @args (if present).
@@ -67,12 +70,13 @@ Calls a callback $cb when executing a program is finished.
 
 
 sub execute(@ ) {
-  AE::log trace => "PID=$$ executing:\n@_";
+  AE::log trace => "PID=$$ run:\n@_";
 
   &exec_cmd( @_ );
 }
 
-=item $result = exec_cmd( $command, [ @args ] )
+
+=item $result = B<exec_cmd>( $command, [ @args ] )
 
 Executes a command $command with additional passed argmuments @args
 (if present).
@@ -85,41 +89,43 @@ Returns output of a command or an error string.
 sub exec_cmd ($;@) {
   my ( $do, @opt ) = @_;
 
-  my $prog = &fix_cmd( $do, @opt );
+  my $prog = &get_cmd_path( $do, @opt );
 
   -e $prog or return ( AE::log error => "%s: %s", $prog, $! );
 
   $do = join( ' ', $prog, @opt ) if ( @opt );
 
-  my ( $result, $status, $exit, $signal, $cdstr );
+  my ( $output, $status, $exit, $signal, $cdump );
+  
+  # FIXME: does eval really needed?
 
   eval {
-    $result = qx( $do 2>&1 );
+    $output = qx( $do 2>&1 );
     $status = $?;
     $exit   = $status >> 8;
     $signal = $exit & 127;
-    $cdstr  = $exit & 128 ? "with core dump " : "";
+    $cdump  = $exit & 128 ? "with core dump " : "";
 
-    if ( $signal or $cdstr ) {
+    if ( $signal or $cdump ) {
       die sprintf
         (
-          "\%s\' failed %s[exit=%d, signal=%d, result=%d]:\n%s",
+          "\`%s\' failed %s[exit=%d, signal=%d, result=%d]:\n%s",
           $do,
-          $cdstr,
+          $cdump,
           $exit,
           $signal,
           $status,
-          $result,
+          $output,
         )
       ;
     }
   };
 
-  return $@ ? ( 0, $@ ) : ( 1, $result );
+  return $@ ? ( 0, $@ ) : ( 1, $output );
 }
 
 
-=item $program = fix_cmd( $command, [ \@arggs ] )
+=item $program = B<get_cmd_path>( $command, [ \@arggs ] )
 
 Extracts from a string $command an executable filename and returns it.
 If the string $command contains additional arguments, 
@@ -129,7 +135,7 @@ the \@args array reference to begining of the array.
 =cut
 
 
-sub fix_cmd ($;\@) {
+sub get_cmd_path($;\@) {
   my ( $prog, @user_args ) = split( " ", shift );
 
   if ( my $args = shift ) {
@@ -141,14 +147,17 @@ sub fix_cmd ($;\@) {
 }
 
 
-=item $sa = set_sa()
+=item $sa = B<set_sa>()
 
-Creates sigaction as hash reference.
-A hash reference contains next keys:
+Creates a sigaction for the signal SIGALRM as hash reference.
+The hash reference contains next keys:
 
- m: signal settings for SIGALRM
- a: new action for signal SIGALRM
- o: old action
+ m: the signal settings for SIGALRM
+ a: a new action for signal SIGALRM
+ o: an old action
+ 
+When a signal SIGALRM approaches a new action calls
+subroutine C<<< die "timeout\n" >>>.
 
 =cut
 
