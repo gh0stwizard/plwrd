@@ -90,7 +90,7 @@ my %DEFAULT_SETTINGS =
 
 =over 4
 
-=item create_pool()
+=item B<create_pool>()
 
 Creates pool of worker processes.
 
@@ -122,6 +122,32 @@ Creates pool of worker processes.
     
     return;
   }
+
+  
+=item B<run>( $cmd, @args, $cb->( $rv, $out ) )
+
+Executes a program $cmd with arguments @args. A callback function 
+is called with two arguments:
+
+=over 2
+
+=item *
+
+$rv is a result either 1 (ok) or 0 (error)
+
+=item *
+
+$out is an output string containing both stdout and stderr
+
+=back
+
+=cut
+
+  
+  sub run {
+    $pool->( @_ );
+  }
+
   
   sub _pool_error_cb {
     AE::log crit => "pool: @_";
@@ -141,9 +167,9 @@ Creates pool of worker processes.
 
 # ---------------------------------------------------------------------
 
-=item start_server()
+=item B<start_server>()
 
-TBA
+Start a server process.
 
 =cut
 
@@ -164,9 +190,9 @@ sub start_server() {
 }
 
 
-=item shutdown_server()
+=item B<shutdown_server>()
 
-TBA
+Shutdown a server process.
 
 =cut
 
@@ -178,9 +204,9 @@ sub shutdown_server() {
 }
 
 
-=item reload_server()
+=item B<reload_server>()
 
-TBA
+Reload a server process.
 
 =cut
 
@@ -194,9 +220,10 @@ sub reload_server() {
 }
 
 
-=item update_settings()
+=item B<update_settings>()
 
-TBA
+Updates the server settings either by %ENV variables or
+default settings.
 
 =cut
 
@@ -213,9 +240,9 @@ sub update_settings() {
 }
 
 
-=item enable_syslog()
+=item B<enable_syslog>()
 
-TBA
+Enables syslog.
 
 =cut
 
@@ -234,9 +261,9 @@ sub enable_syslog() {
 }
 
 
-=item reload_syslog()
+=item B<reload_syslog>()
 
-TBA
+Reload syslog context.
 
 =cut
 
@@ -257,9 +284,10 @@ sub reload_syslog() {
 }
 
 
-=item get_syslog_facility()
+=item $facility = B<get_syslog_facility>()
 
-TBA
+Returns a syslog facility name from C< $ENV{ PERL_ANYEVENT_LOG } >
+variable.
 
 =cut
 
@@ -270,9 +298,9 @@ sub get_syslog_facility() {
 }
 
 
-=item start_httpd()
+=item B<start_httpd>()
 
-TBA
+Starts Feersum.
 
 =cut
 
@@ -296,6 +324,14 @@ TBA
     AE::log fatal => "Could not retrieve fileno %s:%d: %s",
       $addr, $port, $!;
   }
+
+
+=item B<stop_httpd>()
+
+Stops Feersum.
+
+=cut
+
   
   sub stop_httpd() {
     if ( ref $Instance eq 'Feersum' ) {
@@ -342,6 +378,26 @@ sub _503 {
     [ 'Service Unavailable' ],
   );
 }
+
+
+=item $sock = B<create_socket>( $addr, $port )
+
+Creates SOCK_STREAM listener socket with next options:
+
+=over
+
+=item *
+
+SO_REUSEADDR
+
+=item *
+
+SO_KEEPALIVE
+
+=back
+
+=cut
+
 
 sub create_socket($$) {
   my ( $addr, $port ) = @_;
@@ -413,6 +469,14 @@ sub create_socket($$) {
   return $socket;
 }
 
+
+=item ( $addr, $port ) = B<parse_listen>()
+
+Returns IP address $addr and port $port to listen.
+
+=cut
+
+
 sub parse_listen() {
   my ( $cur_addr, $cur_port ) = split ':', $CURRENT_SETTINGS{ 'LISTEN' };
   my ( $def_addr, $def_port ) = split ':', $DEFAULT_SETTINGS{ 'LISTEN' };
@@ -422,6 +486,15 @@ sub parse_listen() {
   
   return( $cur_addr, $cur_port );
 }
+
+
+=item $app = B<load_app>()
+
+Try to load an application for Feersum. Returns a
+reference to subroutine application. If the application unable
+to load returns a predefined subroutine with 500 HTTP code.
+
+=cut
 
 
 sub load_app() {
@@ -447,6 +520,14 @@ sub load_app() {
   return \&_500;
 }
 
+
+=item B<debug_settings()>
+
+Prints settings to output log.
+
+=cut
+
+
 sub debug_settings() {  
   my @envopts =
   (
@@ -463,6 +544,14 @@ sub debug_settings() {
     for ( sort keys %CURRENT_SETTINGS );  
 }
 
+
+=item B<write_pidfile>()
+
+Creates a pidfile. If an error occurs stops the program.
+
+=cut
+
+
 sub write_pidfile() {
   my $file = $CURRENT_SETTINGS{ 'PIDFILE' } || return;
 
@@ -473,6 +562,14 @@ sub write_pidfile() {
   close( $fh )
     or AE::log fatal => "close pidfile %s: %s", $file, $!;
 }
+
+
+=item B<unlink_pidfile>()
+
+Removes a pidfile from a disk.
+
+=cut
+
 
 sub unlink_pidfile() {
   my $file = $CURRENT_SETTINGS{ 'PIDFILE' } || return;
