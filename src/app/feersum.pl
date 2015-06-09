@@ -1,21 +1,13 @@
 #!/usr/bin/perl
 
-#
-# Workaround for AnyEvent::Fork->new():
-#  Instead of using a Proc::FastSpawn::spawn() call
-#  just fork the current process.
-#  
-#  Creates a parent, template process.
-#
-use AnyEvent::Fork::Early;
-my $PREFORK = AnyEvent::Fork->new();
-
+# This is free software; you can redistribute it and/or modify it
+# under the same terms as the Perl 5 programming language system itself.
 
 =encoding utf-8
 
 =head1 NAME
 
-Feersum application for plwrd
+Application for plwrd written with Feersum backend.
 
 =cut
 
@@ -26,6 +18,7 @@ use AnyEvent;
 use HTTP::Body ();
 use JSON::XS qw( encode_json decode_json );
 use Local::DB::UnQLite;
+use Scalar::Util qw();
 use vars qw( $PROGRAM_NAME );
 
 
@@ -65,7 +58,7 @@ sub DUPLICATE_ENTRY   { 4 } # Duplicate entry in a database
 sub NOT_FOUND         { 5 } # Not found
 
 
-=item app( $request )
+=item B<app>( $request )
 
 The main application function. Accepts one argument with
 request object $request.
@@ -118,7 +111,7 @@ sub app {
 }
 
 
-=item get_params( $request, $length, $content_type )
+=item B<get_params>( $request, $length, $content_type )
 
 Reads HTTP request body. Returns hash reference with request parameters.
 A key represents a name of parameter and it's value represents an actual value.
@@ -154,9 +147,10 @@ sub get_params($$$) {
 }
 
 
-=item store_data( $request, $length, $content_type )
+=item $json = B<store_data>( $request, $length, $content_type )
 
 Stores data to DB by request. Actual value for data depends on $request.
+Returns a JSON string with result.
 
 =cut
 
@@ -203,11 +197,12 @@ sub store_data($$$) {
 }
 
 
-=item retrieve_data( $request, $action, $key )
+=item $json = B<retrieve_data>( $request, $action, $key )
 
 Virtual function: retrieves data from a database, performs action.
 
-When possible returns data immediatly, when not returns nothing.
+When possible returns a JSON string immediatly, when not returns nothing,
+but later calls $request->write( $json ) by itself.
 
 =cut
 
@@ -222,21 +217,26 @@ sub retrieve_data(@) {
 
     if ( my $data = Local::DB::UnQLite->new( 'apps' )>fetch( $kv ) ) {
       AE::log trace => "%s: %s", $kv, $data;
-      #
-      # TODO: $pool->execute( $data->{ 'cmd' }, ... )
-      #
 
-      #my $rv = 0; # program return value ( 0..255 )
-      #my $stdout = 'TODO';
-      #my $stderr = 'TODOTODO';
-
-      #%response =
-      #(
-      #  'name'    => $kv,
-      #  'rv'      => $rv,
-      #  'stdout'  => $stdout,
-      #  'stderr'  => $stderr,
-      #);
+      my $cb = sub {
+        my ( $rv, $out ) = @_;
+        
+        &Scalar::Util::weaken( my $r = $r );
+        
+        my $w = $r->start_streaming( 200, \@HEADER_JSON );
+        $w->write( encode_json(
+          {
+            'action' => 'runApp',
+            'name' => $kv,
+            'result' => $rv,
+            'output' => $out,
+          } 
+        ) );
+        $w->close();
+      };
+      
+      # see backend/feersum.pl
+      pool_exec( $data->{ 'cmd' }, $cb );
       
       # deffer response
       return;
