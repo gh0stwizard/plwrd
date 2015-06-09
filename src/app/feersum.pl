@@ -169,7 +169,7 @@ sub store_data($$$) {
     if ( ! $db->fetch( $kv ) ) {
       # using 'name' parameter as unique key
       $db->store( $kv, encode_json( $params ) )
-        ? ( %response = ( 'id' => $kv ) )
+        ? ( %response = ( 'name' => $kv ) )
         : ( %response = ( 'err' => &EINT_ERROR() ) );
     } else {
       %response = ( 'err' => &DUPLICATE_ENTRY() );
@@ -180,7 +180,7 @@ sub store_data($$$) {
     
     if ( $db->fetch( $kv ) ) {
       $db->delete( $kv )
-        ? ( %response = ( 'id' => $kv ) )
+        ? ( %response = ( 'name' => $kv ) )
         : ( %response = ( 'err' => &EINT_ERROR() ) );
     } else {
       %response = ( 'err' => &NOT_FOUND() );

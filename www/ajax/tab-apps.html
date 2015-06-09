@@ -24,7 +24,8 @@ $(function() {
     "<p>" + $icon_notice + "Bad request</p>",
     "<p>" + $icon_notice + "Not implemented yet</p>",
     "<p>" + $icon_notice + "Internal error</p>",
-    "<p>" + $icon_notice + "Duplicate entry</p>"
+    "<p>" + $icon_notice + "Duplicate entry</p>",
+    "<p>" + $icon_notice + "Not found</p>"
   ];
 
   var dialog, form,
@@ -122,7 +123,7 @@ $(function() {
         cache: false,
       } )
       .done( function ( data, textStatus, jqXHR ) {
-        if ( data.id ) {
+        if ( data.name ) {
           addEntryIntoTable( name, user, cmd );
           dialog.dialog( "close" );
         } else {
