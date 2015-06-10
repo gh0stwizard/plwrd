@@ -86,7 +86,7 @@ sub app {
     if ( my $query = $env->{ 'QUERY_STRING' } ) {
       AE::log trace => "query: %s", $query;
 
-      if ( $query =~ /^action=(\w{6,8})&name=(\w{1,16})$/o ) {
+      if ( $query =~ /^action=(\w{6,8})&name=(\w{2,16})$/o ) {
         &retrieve_data( $req, $1, $2 );
       } else {
         &_501( $req );
@@ -242,12 +242,22 @@ sub retrieve_data(@) {
     } else {
       %response = ( 'err' => &NOT_FOUND() );
     }
+    
   } elsif ( $action eq 'getApp' ) {
+    # get info about an app
+  
     if ( my $data = Local::DB::UnQLite->new( 'apps' )>fetch( $kv ) ) {
       return $data;
     } else {
       %response = ( 'err' => &NOT_FOUND() );
     }
+    
+  } elsif ( $action eq 'listApps' ) {
+    # get all apps as list
+    
+    # always returns an array reference
+    return
+      encode_json( Local::DB::UnQLite->new( 'apps' )->all() );
   }
   
   return encode_json( \%response );

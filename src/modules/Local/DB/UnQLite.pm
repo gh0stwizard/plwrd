@@ -8,6 +8,24 @@ UnQLite database interface for simple apps.
 
 =cut
 
+=head1 DESCRIPTION
+
+This is a simple interface to L<UnQLite> module for
+small applications.
+
+It is using the "cache" technique when database instances (or
+database descriptors) are not closed automatically while 
+an application is running. That's mean that you are able
+to call C<<< Local::DB::UnQLite->new( 'mydb' ) >>> and forget to
+keep a reference to it's object. The database will not
+be closed until you call C<<< $db->close( 'mydb' ) >>> or
+C<<< $db->closealldb() >>> methods.
+
+Such implementation will helps keeping your code as simple
+as possible (at least, I hope so).
+
+=cut
+
 
 use strict;
 use UnQLite;
@@ -15,22 +33,24 @@ use Encode ();
 use File::Spec::Functions qw( catfile canonpath );
 
 
-our $VERSION = '1.001'; $VERSION = eval $VERSION;
+our $VERSION = '1.002'; $VERSION = eval $VERSION;
 
 
 =head1 FUNCTIONS
 
 =over 4
 
-=item initdb( $name )
+=item $unqlite = B<initdb>( $name )
 
-Initialize database instance. Creates database with a
+Initialize a database instance. Creates database with a
 file name "<DB_HOME>/$name.db". Where is <DB_HOME> is
-value returned by function get_db_home().
+value returned by function B<get_db_home>().
 
 A value $name should not contains any file extention.
 The file name extention is hardcoded and always equals
 to ".db".
+
+The function calls C<die()> if an error has been occured.
 
 =cut
 
@@ -87,7 +107,7 @@ to ".db".
   }
 
 
-=item closedb( $name )
+=item B<closedb>( $name )
 
 Closes a database handler identified by $name.
 
@@ -97,14 +117,14 @@ Closes a database handler identified by $name.
   sub closedb($) {
     my $name = shift || "none";
   
-    delete $DBS{ $name };
+    delete $DBS{ $name } if ( exists $DBS{ $name } );
     return;
   }
 
 
-=item closealldb()
+=item B<closealldb>()
 
-Closes database handlers.
+Closes all database handlers.
 
 =cut
 
@@ -121,7 +141,7 @@ Closes database handlers.
 }
 
 
-=item get_db_home()
+=item $db_home = B<get_db_home>()
 
 Returns DB home directory. Default is ".";
 
@@ -136,7 +156,7 @@ Returns DB home directory. Default is ".";
   }
 
 
-=item set_db_home( $string )
+=item $db_home = B<set_db_home>( $string )
 
 Sets DB home directory to specified value $string.
 
@@ -145,6 +165,7 @@ Sets DB home directory to specified value $string.
   
   sub set_db_home($) {
     $DB_HOME_DIR = "$_[0]" if ( $_[0] );
+    $DB_HOME_DIR;
   }
 }
 
@@ -155,12 +176,13 @@ Sets DB home directory to specified value $string.
 
 =over 4
 
-=item new( $name )
+=item $db = B<new>( $name )
 
 Creates or returns existing dabatase instance object.
-See opendb() function for details.
+See a B<initdb>() function for details.
 
-=item $rv = store( $key, $value )
+
+=item $rv = B<store>( $key, $value )
 
 Calls kv_store( $key, $value ). Returns true if successed.
 
@@ -176,9 +198,9 @@ sub store($$$) {
 }
 
 
-=item $data = fetch( $key )
+=item $data = B<fetch>( $key )
 
-Calls kv_fetch( $key).
+Calls kv_fetch( $key ).
 
 =cut
 
@@ -191,7 +213,7 @@ sub fetch($) {
 }
 
 
-=item delete( $key )
+=item $rv = B<delete>( $key )
 
 Delete entry specified by a key $key from a database.
 Calls kv_delete( $key ).
@@ -207,7 +229,7 @@ sub delete( $key ) {
 }
 
 
-=item $num_deleted = delete_all()
+=item $num_deleted = B<delete_all>()
 
 Deletes all entries from database.
 
@@ -231,7 +253,7 @@ sub delete_all($) {
 }
 
 
-=item entries()
+=item $num = B<entries>()
 
 Returns a number of entries stored in a database.
 
@@ -251,6 +273,29 @@ sub entries($) {
   }
   
   return $entries;
+}
+
+
+=item $ary = B<all>()
+
+Returns all entries as an array reference.
+
+=cut
+
+
+sub all($) {
+  my $db = _get_instance ${ $_[0] };
+  my $cursor = $db->cursor_init();
+  
+  my @list;
+  for ( $cursor->first_entry();
+        $cursor->valid_entry();
+        $cursor->next_entry() )
+  {
+    push @list, { $cursor->key() => $cursor->data() };
+  }
+  
+  return \@list;
 }
 
 
