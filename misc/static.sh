@@ -3,10 +3,19 @@
 APPNAME="plwrd"
 STRIP="none" #ppi"
 LINKTYPE="static" #allow-dynamic"
+BIN_DIR="bin"
+RC_FILE=${HOME}/.staticperlrc
+SP_FILE=${HOME}/staticperl
+BOOT_FILE="../src/main.pl"
 
-. ~/.staticperlrc
+if [ -f ${RC_FILE} ]; then
+	. ${RC_FILE}
+else
+	echo "${RC_FILE}: not found"
+	exit 1
+fi
 
-~/staticperl mkapp bin/$APPNAME --boot ../src/main.pl \
+${SP_FILE} mkapp ${BIN_DIR}/$APPNAME --boot ${BOOT_FILE} \
 -Msort.pm \
 -Mfeature.pm \
 -Mvars \
@@ -44,6 +53,7 @@ LINKTYPE="static" #allow-dynamic"
 -MAnyEvent::Fork \
 -MAnyEvent::Fork::RPC \
 -MAnyEvent::Fork::Pool \
+-MData::Dumper \
 --strip ${STRIP} \
 --${LINKTYPE} \
 --usepacklists \

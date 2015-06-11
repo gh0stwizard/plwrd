@@ -8,10 +8,9 @@
 <script>
 $(function() {
   /*
-   *
    * "Add" button setup
-   *
    */
+
   var $addr = window.location.protocol + '//' + window.location.host;
   var $action = $( "#addAppForm" ).attr( "action" );
   var $title_done = 'Done!';
@@ -28,13 +27,13 @@ $(function() {
     "<p>" + $icon_notice + "Not found</p>"
   ];
 
-  var dialog, form,
+  var dialog, editor, form,
     table = $( "table" ),
     tbody = $( "table tbody" ),
     name = $( "#name" ),
     user = $( "#user" ),
     cmd = $( "#cmd" ),
-    allFields = $( [] ).add( name ).add( user).add( cmd ),
+    allFields = $( [] ).add( name ).add( user ).add( cmd ),
     tips = $( ".validateTips" );
     
   function updateTips( t ) {
@@ -102,10 +101,12 @@ $(function() {
     var t = "<p>" + $icon_alert + text + "</p>";
     d.append( t ).dialog( "open" );
   }
+  
+  /*
+   * Add application callback
+   */
 
   function createApp() {
-    var self = $( this );
-
     var valid = true;
     allFields.removeClass( "ui-state-error" );
     
@@ -143,12 +144,146 @@ $(function() {
       + '</td><td>' + u.val()
       + '</td><td>' + c.val() + '</td></tr>' );
     table.trigger( "update", [ true ] );
+    return false;
   }
+
+
+  /*
+   * Edit application show entry callback
+   */
+
+  function editApp( entry ) {
+    var valid = true;
+
+/*
+    allFields.removeClass( "ui-state-error" );
+
+    valid = valid && checkLength( name, "name", 2, 16 );
+    valid = valid && checkLength( user, "user", 1, 16 );
+    valid = valid && checkLength( cmd, "command", 1, 256 );
+*/
+
+    if ( valid ) {
+      $.ajax( {
+        url: $addr + $action,
+        type: "POST",
+        async: false,
+        data: $( "#editAppForm" ).serialize(),
+        dataType: "json",
+        cache: false,
+      } )
+      .done( function ( data, textStatus, jqXHR ) {
+        if ( data.name ) {
+          //editEntryTable( name, user, cmd );
+          editor.dialog( "close" );
+        } else {
+          showMessage( $title_error, $errors[ data.err ] );
+        }
+      } )
+      .fail( function ( xhr, textStatus, errorThrown ) {
+        showMessage( $title_error, $errors[ 0 ] );
+      } );
+    }
+
+    return valid;
+  }
+
+  /*
+   * Delete application button callback
+   */
+
+
+   function delApp() {
+      var n = $( '#editAppFrom #name' ).text();
+      console.log( 'delApp: ' + n );
+   }
+
+
+  /*
+   * A callback for entry: show dialog window
+   */
+   
+
+  function showEntry( event ) {
+    event = event || window.event;
+    var e = event.target || event.srcElement;
+    var t = e.parentNode;    
+    var n = $( t ).children().first().text(); // name
+    
+    var request = '?action=getApp&name=' + n;
+    
+    $.ajax( {
+      url : $addr + $action + request,
+      type : 'GET',
+      async : false,
+      dataType : 'json'
+    } )
+    .done( function( data, textStatus, jqXHR ) {
+      if ( data.name ) {
+        $( '#editAppForm #name' ).val( data.name );
+        $( '#editAppForm #cmd' ).val( data.cmd );
+        $( '#editAppForm #user' ).val( data.user );
+        editor.dialog( 'open' );
+      } else {
+        showMessage( $title_error, $errors[ data.err ] );
+      }
+    } )
+    .fail( function( data, textStatus, errorThrown ) {
+      showMessage( $title_error, $errors[ 0 ] );
+    } );
+  }
+
+  
+  /*
+   * Fetch entries from a server
+   */
+
   
   function loadEntries() {
+    // clean previous records
     tbody.empty();
-    // TODO
+    
+    // ask server about records
+    var request = '?action=listApps';
+    
+    $.ajax( {
+      url : $addr + $action + request,
+      type : 'GET',
+      async : false,
+      dataType : 'json'
+    } )
+    .done( function( data, textStatus, jqXHR ) {
+      /* data is an array of hashes
+       * add entries from the data object to a table
+       */
+      var entries = data.length;
+      for (var i = 0; i < entries; i++) {
+        var entry = data[ i ];
+        tbody.append( '<tr><td>'  + entry.name 
+                    + '</td><td>' + entry.user
+                    + '</td><td>' + entry.cmd  + '</td></tr>' );
+      }
+      
+      // register on click event to show dialog window
+      // about an entry
+      $( 'table tbody tr td' ).click( showEntry );
+      
+      // update table internal structures
+      table.trigger( "update", [ true ] );
+      return false;
+    } )
+    .fail( function( data, textStatus, errorThrown ) {
+      showMessage( $title_error, $errors[ 0 ] );
+    } );
+
+    return false;
   }
+
+
+  /*
+   * Clear entries in the table
+   */
+
   
   function flushTable() {
     tbody.empty();
@@ -156,11 +291,17 @@ $(function() {
     return false;
   }
 
+  
+  /*
+   * Initialize a dialog form to create app
+   */ 
+
+
   dialog = $( "#add-form" ).dialog( {
     dialogClass: "no-close",
     autoOpen: false,
     heigth: 300,
-    width: 350,
+    width: 400,
     maxWidth: 600,
     modal: true,
     buttons: {
@@ -176,15 +317,43 @@ $(function() {
     }
   } );
 
-  form = dialog.find( "form" ).on( "submit", function( event ) {
+  form = dialog.find( "#addAppForm" ).on( "submit", function( event ) {
     event.preventDefault();
     createApp();
   } );
+
+
+  /*
+   * Initialize a dialog form to create app
+   */ 
+
+
+  editor = $( "#edit-form" ).dialog( {
+    dialogClass: "no-close",
+    autoOpen: false,
+    heigth: 300,
+    width: 400,
+    maxWidth: 600,
+    modal: true,
+    buttons: {
+      "Save" : editApp,
+      "Delete" : delApp,
+      "Cancel" : function() {
+        editor.dialog( "close" );
+      }
+    },
+    close: function() {
+      form[ 0 ].reset();
+      tips.text( "All form fields are required." );
+      //allFields.removeClass( "ui-state-error" );
+    }
+  } );
+
   
   /*
    * Initialize buttons
-   *
    */
+
 
   $( "#create-app" )
     .button( {
@@ -223,12 +392,12 @@ $(function() {
         return false;
       } );
     } );
+
   
   /*
-   *
    * Apllications table setup
-   *
    */
+
 
   // Extend the themes to change any of the default class names
   $.extend( $.tablesorter.themes.jui, {
@@ -274,7 +443,12 @@ $(function() {
       // uitheme : 'jui'
     }
   } );
-    
+
+  
+  // fill the table first
+  loadEntries();
+  
+ 
 } ); // document.ready
 </script>
 
@@ -294,6 +468,25 @@ $(function() {
       <input type="text" name="cmd" id="cmd" value="/bin/ls"
             class="text ui-widget-content ui-corner-all">
       <input type="hidden" name="action" value="addApp">
+    </fieldset>
+  </form>
+</div>
+
+<div id="edit-form" title="Edit application">
+  <p class="validateTips">All form fields are required.</p>
+
+  <form action="/plwrd" method="post" id="editAppForm">
+    <fieldset>
+      <label for="name">Name</label>
+      <input type="text" name="name" id="name"
+            class="text ui-widget-content ui-corner-all">
+      <label for="user">User</label>
+      <input type="text" name="user" id="user"
+            class="text ui-widget-content ui-corner-all">
+      <label for="cmd">Command</label>
+      <input type="text" name="cmd" id="cmd"
+            class="text ui-widget-content ui-corner-all">
+      <input type="hidden" name="action" value="editApp">
     </fieldset>
   </form>
 </div>

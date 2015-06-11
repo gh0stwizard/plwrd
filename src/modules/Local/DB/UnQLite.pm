@@ -31,9 +31,10 @@ use strict;
 use UnQLite;
 use Encode ();
 use File::Spec::Functions qw( catfile canonpath );
+use JSON::XS qw( decode_json );
 
 
-our $VERSION = '1.002'; $VERSION = eval $VERSION;
+our $VERSION = '1.003'; $VERSION = eval $VERSION;
 
 
 =head1 FUNCTIONS
@@ -209,7 +210,31 @@ sub fetch($) {
   #my ( $self, $key ) = @_;
   
   my $db = _get_instance ${ $_[0] };
-  return &Encode::decode_utf8( $db->kv_fetch( $_[1] ) );
+  my $entry = $db->kv_fetch( $_[1] ) || return;
+  
+  return ( &Encode::is_utf8( $entry ) )
+    ? &Encode::decode_utf8( $entry )
+    : $entry;
+}
+
+
+=item $data = B<fetch_json>( $key )
+
+Calls kv_fetch( $key ). An entry will be decoded by
+C<JSON::XS::decode_json()> function.
+
+=cut
+
+
+sub fetch_json($) {
+  #my ( $self, $key ) = @_;
+  
+  my $db = _get_instance ${ $_[0] };
+  my $entry = $db->kv_fetch( $_[1] ) || return;
+  
+  return ( &Encode::is_utf8( $entry ) )
+    ? decode_json( &Encode::decode_utf8( $entry ) )
+    : decode_json( $entry );  
 }
 
 
@@ -240,13 +265,11 @@ sub delete_all($) {
   my $db = _get_instance ${ $_[0] };
   my $cursor = $db->cursor_init();
 
-  my $num_deleted = 0;  
+  my $num_deleted = 0;
   for ( $cursor->first_entry();
-        $cursor->valid_entry();
-        $cursor->next_entry() )
+        $cursor->valid_entry(); )
   {
-    $cursor->delete_entry();
-    $num_deleted++;
+    $cursor->delete_entry() && $num_deleted++;
   }
   
   return $num_deleted;
@@ -292,7 +315,31 @@ sub all($) {
         $cursor->valid_entry();
         $cursor->next_entry() )
   {
-    push @list, { $cursor->key() => $cursor->data() };
+    push @list, &Encode::decode_utf8( $cursor->data() );
+  }
+  
+  return \@list;
+}
+
+=item $ary = B<all_json>()
+
+Returns all entries as an array reference. Each entry will be
+decoded by C<JSON::XS::decode_json()> function.
+
+=cut
+
+
+sub all_json($) {
+  my $db = _get_instance ${ $_[0] };
+  my $cursor = $db->cursor_init();
+  
+  my @list;
+  for ( $cursor->first_entry();
+        $cursor->valid_entry();
+        $cursor->next_entry() )
+  {
+    push @list,
+      decode_json( &Encode::decode_utf8( $cursor->data() ) );
   }
   
   return \@list;

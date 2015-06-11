@@ -77,20 +77,30 @@ sub app {
     my $type = $env->{ 'CONTENT_TYPE' };
     my $len = $env->{ 'CONTENT_LENGTH' };
     my $r = delete $env->{ 'psgi.input' };
-    
+
     my $w = $req->start_streaming( 200, \@HEADER_JSON );
     $w->write( &store_data( $r, $len, $type ) );
     $w->close();
+
   } elsif ( $method eq 'GET' ) {
     # GET methods are using to retrieve data from a database
     if ( my $query = $env->{ 'QUERY_STRING' } ) {
-      AE::log trace => "query: %s", $query;
-
-      if ( $query =~ /^action=(\w{6,8})&name=(\w{2,16})$/o ) {
-        &retrieve_data( $req, $1, $2 );
+      AE::log trace => "GET request: %s", $query;
+      
+      if ( $query =~ /^action=(\w{3,12})$/o ) {
+        # applied for actions: listApp
+        my $w = $req->start_streaming( 200, \@HEADER_JSON );
+        $w->write( &retrieve_data( $req, $1 ) );
+        $w->close();
+      } elsif ( $query =~ /^action=(\w{3,12})&name=(\w{2,16})$/o ) {
+        # applied for actions: getApp, runApp
+        my $w = $req->start_streaming( 200, \@HEADER_JSON );
+        $w->write( &retrieve_data( $req, $1, $2 ) );
+        $w->close();
       } else {
         &_501( $req );
       }
+
     } else {
       # when working standalone, i.e. without nginx
 
@@ -102,10 +112,11 @@ sub app {
       &_500( $req );
     }
   } else {
+    # unsupported method means 'cya!'
     &_405( $req );
   }
   
-  return;
+  return $req;
 }
 
 
@@ -187,7 +198,11 @@ sub store_data($$$) {
     }    
   } elsif ( $action eq 'wipeApps' ) {
     # remove all entries from apps.db
+    my $total = Local::DB::UnQLite->new( 'apps' )->entries();
     my $num = Local::DB::UnQLite->new( 'apps' )->delete_all();
+
+    AE::log trace => "%d of %d wiped", $num, $total;
+
     %response = ( 'wiped' => $num );
   }
   
@@ -195,7 +210,7 @@ sub store_data($$$) {
 }
 
 
-=item $json = B<retrieve_data>( $request, $action, $key )
+=item $json = B<retrieve_data>( $request, $action, [ $key ] )
 
 Either retrieves data from a database or performs an action.
 
@@ -210,7 +225,7 @@ sub retrieve_data(@) {
   
   my %response = ( 'err' => &NOT_IMPLEMENTED() );
   
-  if ( $action eq 'runApp' ) {  
+  if ( $action eq 'runApp' ) {
     # run application
 
     if ( my $data = Local::DB::UnQLite->new( 'apps' )>fetch( $kv ) ) {
@@ -218,7 +233,9 @@ sub retrieve_data(@) {
 
       my $cb = sub {
         my ( $rv, $out ) = @_;
-        
+
+        AE::log trace => "%s return %d: %s", $kv, $rv, $out;
+
         &Scalar::Util::weaken( my $r = $r );
         
         my $w = $r->start_streaming( 200, \@HEADER_JSON );
@@ -245,19 +262,17 @@ sub retrieve_data(@) {
     
   } elsif ( $action eq 'getApp' ) {
     # get info about an app
-  
-    if ( my $data = Local::DB::UnQLite->new( 'apps' )>fetch( $kv ) ) {
+    
+    if ( my $data = Local::DB::UnQLite->new( 'apps' )->fetch( $kv ) ) {
       return $data;
     } else {
       %response = ( 'err' => &NOT_FOUND() );
     }
     
   } elsif ( $action eq 'listApps' ) {
-    # get all apps as list
-    
     # always returns an array reference
-    return
-      encode_json( Local::DB::UnQLite->new( 'apps' )->all() );
+    return 
+      encode_json( Local::DB::UnQLite->new( 'apps')->all_json()  );
   }
   
   return encode_json( \%response );
