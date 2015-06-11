@@ -195,7 +195,20 @@ sub store_data($$$) {
         : ( %response = ( 'err' => &EINT_ERROR() ) );
     } else {
       %response = ( 'err' => &NOT_FOUND() );
+    }
+  } elsif ( $action eq 'editApp' ) {
+    # update record
+    my $kv = $params->{ 'name' };
+    my $db = Local::DB::UnQLite->new( 'apps' );
+    
+    if ( $db->fetch( $kv ) ) {
+      $db->store( $kv, encode_json( $params ) )
+        ? ( %response = ( 'name' => $kv ) )
+        : ( %response = ( 'err' => &EINT_ERROR() ) );
+    } else {
+      %response = ( 'err' => &NOT_FOUND() );
     }    
+  
   } elsif ( $action eq 'wipeApps' ) {
     # remove all entries from apps.db
     my $total = Local::DB::UnQLite->new( 'apps' )->entries();

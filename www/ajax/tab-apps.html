@@ -143,6 +143,11 @@ $(function() {
     tbody.append( '<tr><td>' + n.val()
       + '</td><td>' + u.val()
       + '</td><td>' + c.val() + '</td></tr>' );
+      
+    // register on click event to show dialog window
+    // about an entry
+    $( 'table tbody tr td' ).click( showEntry );
+
     table.trigger( "update", [ true ] );
     return false;
   }
@@ -155,13 +160,14 @@ $(function() {
   function editApp( entry ) {
     var valid = true;
 
-/*
-    allFields.removeClass( "ui-state-error" );
+    $( '#editAppForm :input' ).removeClass( "ui-state-error" );
+    var n = $( '#editAppForm #name' ),
+        u = $( '#editAppForm #user' ),
+        c = $( '#editAppForm #cmd' );
 
-    valid = valid && checkLength( name, "name", 2, 16 );
-    valid = valid && checkLength( user, "user", 1, 16 );
-    valid = valid && checkLength( cmd, "command", 1, 256 );
-*/
+    valid = valid && checkLength( n, "name", 2, 16 );
+    valid = valid && checkLength( u, "user", 1, 16 );
+    valid = valid && checkLength( c, "command", 1, 256 );
 
     if ( valid ) {
       $.ajax( {
@@ -174,7 +180,9 @@ $(function() {
       } )
       .done( function ( data, textStatus, jqXHR ) {
         if ( data.name ) {
-          //editEntryTable( name, user, cmd );
+          // TODO
+          //editEntryTable( n, u, c );
+          loadEntries();
           editor.dialog( "close" );
         } else {
           showMessage( $title_error, $errors[ data.err ] );
@@ -188,14 +196,36 @@ $(function() {
     return valid;
   }
 
+
   /*
    * Delete application button callback
    */
 
 
    function delApp() {
-      var n = $( '#editAppFrom #name' ).text();
-      console.log( 'delApp: ' + n );
+      var n = $( '#editAppForm #name' ).val();
+      
+      $.ajax( {
+        url : $addr + $action,
+        type : 'POST',
+        async : false,
+        data : { action : 'delApp', name : n },
+        dataType : 'json',
+        cache : false
+      } )
+      .done( function ( data, textStatus, jqXHR ) {
+        if ( data.name ) {
+          // TODO
+          //deleteEntryFromTable( data.name );
+          loadEntries();
+          editor.dialog( 'close' );
+        } else {
+          showMessage( $title_error, $errors[ data.err ] );
+        }
+      } )
+      .fail( function ( xhr, textStatus, errorThrown ) {
+        showMessage( $title_error, $errors[ 0 ] );
+      } );
    }
 
 
