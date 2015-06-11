@@ -168,6 +168,7 @@ sub store_data($$$) {
   my $params = &get_params( @_ )
     or return encode_json( { 'err' => &BAD_REQUEST() } );
   
+  AE::log trace => "POST request:";
   AE::log trace => " %s => %s", $_, $params->{ $_ } for keys %$params;
 
   my %response = ( 'err' => &NOT_IMPLEMENTED() );

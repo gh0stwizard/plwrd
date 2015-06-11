@@ -161,11 +161,9 @@ $(function() {
     var valid = true;
 
     $( '#editAppForm :input' ).removeClass( "ui-state-error" );
-    var n = $( '#editAppForm #name' ),
-        u = $( '#editAppForm #user' ),
+    var u = $( '#editAppForm #user' ),
         c = $( '#editAppForm #cmd' );
 
-    valid = valid && checkLength( n, "name", 2, 16 );
     valid = valid && checkLength( u, "user", 1, 16 );
     valid = valid && checkLength( c, "command", 1, 256 );
 
@@ -250,7 +248,11 @@ $(function() {
     } )
     .done( function( data, textStatus, jqXHR ) {
       if ( data.name ) {
+        // $( "#editAppForm" ).serialize() does not contains a
+        // field with disabled attribute in input field.
+        // duplicate this entry and made it hidden.
         $( '#editAppForm #name' ).val( data.name );
+        $( '#editAppForm #name-ui' ).val( data.name );
         $( '#editAppForm #cmd' ).val( data.cmd );
         $( '#editAppForm #user' ).val( data.user );
         editor.dialog( 'open' );
@@ -508,7 +510,7 @@ $(function() {
   <form action="/plwrd" method="post" id="editAppForm">
     <fieldset>
       <label for="name">Name</label>
-      <input type="text" name="name" id="name"
+      <input type="text" name="name-ui" id="name-ui"
             class="text ui-widget-content ui-corner-all" disabled>
       <label for="user">User</label>
       <input type="text" name="user" id="user"
@@ -517,6 +519,7 @@ $(function() {
       <input type="text" name="cmd" id="cmd"
             class="text ui-widget-content ui-corner-all">
       <input type="hidden" name="action" value="editApp">
+      <input type="hidden" name="name" id="name">
     </fieldset>
   </form>
 </div>
