@@ -88,18 +88,23 @@ sub app {
     if ( my $query = $env->{ 'QUERY_STRING' } ) {
       AE::log trace => "GET request: %s", $query;
       
-      if ( $query =~ /^action=(\w{3,12})$/o ) {
-        # applied for actions: listApp
-        my $w = $req->start_streaming( 200, \@HEADER_JSON );
-        $w->write( &retrieve_data( $req, $1 ) );
-        $w->close();
-      } elsif ( $query =~ /^action=runApp&name=(\w{2,16})$/o ) {
+      # unescape
+      $query =~ s/%([0-9A-Fa-f]{2})/chr(hex($1))/eg;
+      
+      AE::log trace => "GET request [unescape]: %s", $query;
+      
+      if ( $query =~ /^action=runApp&name=([\w\s]{2,16})/o ) {
         # run an application
         &run_app( $req, $1 );
-      } elsif ( $query =~ /^action=(\w{3,12})&name=(\w{2,16})$/o ) {
+      } elsif ( $query =~ /^action=(\w{3,12})&name=([\w\s]{2,16})/o ) {
         # applied for actions: getApp, getLogs
         my $w = $req->start_streaming( 200, \@HEADER_JSON );
         $w->write( &retrieve_data( $req, $1, $2 ) );
+        $w->close();
+      } elsif ( $query =~ /^action=(\w{3,12})/o ) {
+        # applied for actions: listApp
+        my $w = $req->start_streaming( 200, \@HEADER_JSON );
+        $w->write( &retrieve_data( $req, $1 ) );
         $w->close();
       } else {
         &_501( $req );
@@ -182,6 +187,8 @@ sub store_data($$$) {
     my $kv = $params->{ 'name' };
     my $db = Local::DB::UnQLite->new( 'apps' );
     
+    AE::log trace => "addApp with key: %s", $kv;
+    
     if ( ! $db->fetch( $kv ) ) {
       # using 'name' parameter as unique key
       $db->store( $kv, encode_json( $params ) )
@@ -243,6 +250,8 @@ sub retrieve_data(@) {
   if ( $action eq 'getApp' ) {
     # get info about an app
     
+    AE::log trace => "getApp with key: %s", $kv;
+    
     if ( my $data = Local::DB::UnQLite->new( 'apps' )->fetch( $kv ) ) {
       return $data;
     } else {
@@ -252,11 +261,14 @@ sub retrieve_data(@) {
   } elsif ( $action eq 'listApps' ) {
     # always returns an array reference
     return 
-      encode_json( Local::DB::UnQLite->new( 'apps')->all_json()  );
+      encode_json( Local::DB::UnQLite->new( 'apps' )->all_json()  );
   } elsif ( $action eq 'getLogs' ) {
     # read logs up to 1kb
     my $err_log = catfile( $BASE_DIR, sprintf( "error_%s.log", $kv ) );
     my $out_log = catfile( $BASE_DIR, sprintf( "output_%s.log", $kv ) );
+
+    $err_log =~ s/\s+//eg;
+    $out_log =~ s/\s+//eg;
     
     my $stdout = &read_file( $out_log );
     my $stderr = &read_file( $err_log );
@@ -333,10 +345,13 @@ sub run_app($$) {
     $w->poll_cb( sub {
       my $s = shift;
 
-      AE::log trace => "poll_cb executing %s", $cmd;
+      AE::log trace => "poll_cb executing: %s", $cmd;
       
       my $err_log = catfile( $BASE_DIR, sprintf( "error_%s.log", $kv ) );
       my $out_log = catfile( $BASE_DIR, sprintf( "output_%s.log", $kv ) );
+      
+      $err_log =~ s/\s+//eg;
+      $out_log =~ s/\s+//eg;
       
       run # see backend/feersum.pl for details
         (

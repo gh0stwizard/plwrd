@@ -1,9 +1,6 @@
 *.db
 *.db_unqlite_journal
-misc/bin/plwrd
-misc/bin/*.db
-misc/bin/*.db_unqlite_journal
-misc/bin/*.log
+misc/bin/*
 www/js/ppb.js
 
 

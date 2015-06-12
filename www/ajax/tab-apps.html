@@ -31,7 +31,6 @@ $(function() {
     name = $( "#addAppForm #name" ),
     user = $( "#addAppForm #user" ),
     cmd = $( "#addAppForm #cmd" ),
-    allFields = $( [] ).add( name ).add( user ).add( cmd ),
     tips = $( ".validateTips" );
     
   function updateTips( t ) {
@@ -67,7 +66,8 @@ $(function() {
       text = arguments[1];
       selector = arguments[2];
     } else {
-      alert( 'showMessage error!' );
+      alert( 'showMessage() error!' );
+      return false;
     }
   
     var m = $( selector ).dialog( {
@@ -92,7 +92,8 @@ $(function() {
       }
     } );
     
-    m.append( text ).dialog( "open" );
+    m.empty().append( text ).dialog( "open" );
+    return false;
   }
 
   
@@ -138,7 +139,8 @@ $(function() {
 
   function createApp() {
     var valid = true;
-    allFields.removeClass( "ui-state-error" );
+    
+    $( '#addAppForm :input').removeClass( "ui-state-error" );
     
     valid = valid && checkLength( name, "name", 2, 16 );
     valid = valid && checkLength( user, "user", 1, 16 );
@@ -170,16 +172,20 @@ $(function() {
   }
   
   function addEntryIntoTable( n, u, c ) {
-    tbody.append( '<tr><td>' + n.val()
+    var row = '<tr><td>' + n.val()
       + '</td><td>' + u.val()
-      + '</td><td>' + c.val() 
-      + '</td><td id="runApp">' + $icon_play + '</td></tr>' );
-      
+      + '</td><td>' + c.val()
+      + '</td><td id="runApp">' + $icon_play + '</td></tr>',
+    $row = $( row ),
+    resort = true;
+
+    table.find( 'tbody' ).append( $row )
+    .trigger( 'addRows', [ $row, resort ] );
+    
     // register on click event to show dialog window
     // about an entry
     setCellEvents();
 
-    table.trigger( "update", [ true ] );
     return false;
   }
 
@@ -187,6 +193,7 @@ $(function() {
   /*
    * Edit application show entry callback
    */
+
 
   function editApp( entry ) {
     var valid = true;
@@ -257,6 +264,7 @@ $(function() {
       } );
    }
 
+
   /*
    * Find application name
    */
@@ -297,7 +305,8 @@ $(function() {
       url : $addr + $action + request,
       type : 'GET',
       dataType : 'json',
-      async : false
+      async : false,
+      cache : false
     } )
     .done( function( data, textStatus, jqXHR ) {
 
@@ -330,7 +339,8 @@ $(function() {
               url : url,
               type : 'GET',
               dataType : 'JSON',
-              async : false
+              async : false,
+              cache : false
             } )
             .done( function( data, textStatus, jqXHR ) {
               // data = { name => xxx, stdout => text, stderr => text }
@@ -347,7 +357,7 @@ $(function() {
           } )
         );
         msg.append( ' for details.' );
-
+        
         showMessage( title, msg );
       } else {
         showMessage( $title_error, $errors[ data.err ] );
@@ -388,7 +398,8 @@ $(function() {
       url : $addr + $action + request,
       type : 'GET',
       async : false,
-      dataType : 'json'
+      dataType : 'json',
+      cache : false
     } )
     .done( function( data, textStatus, jqXHR ) {
       if ( data.name ) {
@@ -428,19 +439,24 @@ $(function() {
       url : $addr + $action + request,
       type : 'GET',
       async : false,
-      dataType : 'json'
+      dataType : 'json',
+      cache : false
     } )
     .done( function( data, textStatus, jqXHR ) {
       /* data is an array of hashes
        * add entries from the data object to a table
        */
       var entries = data.length;
+      var row, $row;
       for (var i = 0; i < entries; i++) {
-        var entry = data[ i ];
-        tbody.append( '<tr><td>'  + entry.name 
-                    + '</td><td>' + entry.user
-                    + '</td><td>' + entry.cmd  
-                    + '</td><td id="runApp">' + $icon_play + '</td></tr>' );
+        var entry = data[ i ],
+        row = '<tr><td>'  + entry.name 
+            + '</td><td>' + entry.user
+            + '</td><td>' + entry.cmd  
+            + '</td><td id="runApp">' + $icon_play + '</td></tr>',
+        $row = $( row );
+        table.find( 'tbody' ).append( $row )
+        .trigger( 'addRows', [ $row, false ] );
       }
       
       // register on click event to show dialog window
@@ -448,7 +464,8 @@ $(function() {
       setCellEvents();
       
       // update table internal structures
-      table.trigger( "update", [ true ] );
+      table.trigger( 'refreshWidgets' ); // zebra widget fix
+
       return false;
     } )
     .fail( function( data, textStatus, errorThrown ) {
@@ -465,9 +482,53 @@ $(function() {
 
   
   function flushTable() {
-    tbody.empty();
-    table.trigger( "update", [ true ] );
+    $( 'table tbody' ).empty();
+    $( 'table' ).trigger( "update", [ true ] );
     return false;
+  }
+
+  
+  /*
+   * Show logs dialog window with accordion widget
+   */
+
+
+  function showLogsWindow( name, stdout, stderr ) {
+    var selector = '#log-window';
+    
+    var accordion = $( '<div id="accordion"></div>' );
+    accordion.append( '<h3>Output</h3><div><pre style="padding: 0; margin: 0">'
+                      + stdout + '</pre></div>' );
+    accordion.append( '<h3>Errors</h3><div><pre style="padding: 0; margin: 0">'
+                      + stderr + '</pre></div>' );
+  
+    var log = $( selector ).dialog( {
+      dialogClass: "no-close",
+      modal : true,
+      autoOpen : false,
+      title : 'Logs of `' + name + "'",
+      width : 800,
+      height : 600,
+      buttons : {
+        Ok : function() {
+          $( this ).dialog( "close" );
+        }
+      },
+      close : function() {
+        $( selector ).empty();
+      },
+      resize : function ( event, ui ) {
+        $( '#accordion' ).accordion( "refresh" );
+      },
+      open : function ( event, ui ) {
+        $( '#accordion' ).accordion( { 
+          collapsible: true,
+          heightStyle: "fill"
+        } );       
+      }
+    } );
+  
+    log.append( accordion ).dialog( 'open' );
   }
 
   
@@ -490,11 +551,17 @@ $(function() {
       }
     },
     close: function() {
-      form[ 0 ].reset();
+      $( '#addAppForm' )[ 0 ].reset();
       tips.text( "All form fields are required." );
-      allFields.removeClass( "ui-state-error" );
+      $( '#addAppForm :input' ).removeClass( "ui-state-error" );
     }
   } );
+  
+  
+  /*
+   * Initialize addAppForm form
+   */
+
 
   form = dialog.find( "#addAppForm" ).on( "submit", function( event ) {
     event.preventDefault();
@@ -622,49 +689,12 @@ $(function() {
       // uitheme : 'jui'
     }
   } );
-  
-  function showLogsWindow( name, stdout, stderr ) {
-    var selector = '#log-window';
-    
-    var accordion = $( '<div id="accordion"></div>' );
-    accordion.append( '<h3>Output</h3><div><pre style="padding: 0; margin: 0">' + stdout + '</pre></div>' );
-    accordion.append( '<h3>Errors</h3><div><pre style="padding: 0; margin: 0">' + stderr + '</pre></div>' );
-  
-    var log = $( selector ).dialog( {
-      dialogClass: "no-close",
-      modal : true,
-      autoOpen : false,
-      title : 'Logs of `' + name + "'",
-      width : 600,
-      height : 400,
-      buttons : {
-        Ok : function() {
-          $( this ).dialog( "close" );
-        }
-      },
-      close : function() {
-        $( selector ).empty();
-      },
-      resize : function ( event, ui ) {
-        $( '#accordion' ).accordion( "refresh" );
-      },
-      open : function ( event, ui ) {
-        $( '#accordion' ).accordion( { 
-          collapsible: true,
-          heightStyle: "fill"
-        } );       
-      }
-    } );
-  
-    log.append( accordion ).dialog( 'open' );
-  }
-  
-  $( "#log-window" ).hide();
+
   
   // fill the table first
   loadEntries();
-  
- 
+
+   
 } ); // document.ready
 </script>
 
@@ -678,7 +708,7 @@ $(function() {
       <input type="text" name="name" id="name" value="ls" 
             class="text ui-widget-content ui-corner-all">
       <label for="user">User</label>
-      <input type="text" name="user" id="user" value="root"
+      <input type="text" name="user" id="user" value="nobody"
             class="text ui-widget-content ui-corner-all">
       <label for="cmd">Command</label>
       <input type="text" name="cmd" id="cmd" value="/bin/ls"
@@ -722,7 +752,14 @@ $(function() {
     </tr>
   </thead>
   <!-- data placeholder //-->
-  <tbody></tbody>
+  <tbody>
+    <tr>
+      <td>test</td>
+      <td>admin</td>
+      <td>dont delete</td>
+      <td>&nbsp;</td>
+    </tr>  
+  </tbody>
 </table>
 
 <!-- dialog window with error, notification messages //-->
@@ -731,4 +768,5 @@ $(function() {
 <!-- yes/no dialog //-->
 <div id="yesno" title="Confirmation"></div>
 
+<!-- logs window //-->
 <div id="log-window"></div>
