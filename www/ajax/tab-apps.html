@@ -3,6 +3,7 @@
   input.text { margin-bottom:12px; width:95%; padding: .4em; }
   fieldset { padding:0; border:0; margin-top:25px; }
   .validateTips { border: 1px solid transparent; padding: 0.3em; }
+  #accordion-resizer { position: relative; padding-bottom: 15px; }
 </style>
 
 <script>
@@ -53,26 +54,58 @@ $(function() {
     }
   }
   
-  function showMessage( title, text ) {
-    var m = $( "#message" ).dialog( {
+  // variable number of arguments function
+  function showMessage() {
+    var title, text, selector;
+    
+    if ( arguments.length == 2 ) {
+      title = arguments[0];
+      text = arguments[1];
+      selector = '#message';
+    } else if ( arguments.length == 3 ) {
+      title = arguments[0];
+      text = arguments[1];
+      selector = arguments[2];
+    } else {
+      alert( 'showMessage error!' );
+    }
+  
+    var m = $( selector ).dialog( {
       dialogClass: "no-close",
       autoOpen: false,
       modal : true,
       title : title,
-      width : 400,
-      height : 250,
+      width : 480,
+      height : 260,
       buttons : {
         Ok : function() {
           $( this ).dialog( "close" );
         }
       },
       close : function() {
-        $( "#message" ).empty();
+        $( selector ).empty();
+        
+        // remove cloned objects
+        if ( selector != '#message' ) {
+          $( selector ).remove();
+        }
       }
     } );
     
     m.append( text ).dialog( "open" );
   }
+
+  
+  function showMessageCloned( title, text ) {
+    $( '#message' ).clone( false )
+    .empty()
+    .attr( 'id', 'new-message' )
+    .appendTo( 'body' );
+    showMessage( title, text, '#new-message' );
+
+    return false;
+  }
+  
   
   function confirmDialog( text, callback ) {
     var d = $( "#yesno" ).dialog( {
@@ -270,14 +303,52 @@ $(function() {
 
       if ( data.name ) {
         /*
-          data fields:
+          additional fields:
             result: command return value
-            output: command output log
         */
-        var news = ( data.result == 1 ) ? ' completed successfully ' : ' failed '
-        var msg = 'Command `' + data.name + "'" + news 
-                + 'with output:<br><pre>' + data.output + '</pre>';
-        showMessage( $title_done, msg );
+        var news, icon, title;
+
+        if ( data.result == 1 ) {
+          news = ' completed successfully! ';
+          icon = $icon_check;
+          title = $title_done;
+        } else {
+          news = ' failed! ';
+          icon = $icon_alert;
+          title = $title_error;
+        }
+        
+        var msg = $( '<div>Command `'+ data.name + "'" + news + '<br />See ' + '</div>' );
+        /*
+         * XXX: this is fucking shit
+         */
+        msg.append(
+          $( '<a class="xlink">logs</a>' ).click( function() {
+            var url = $addr + $action + '?action=getLogs&name=' + data.name;
+            
+            $.ajax( {
+              url : url,
+              type : 'GET',
+              dataType : 'JSON',
+              async : false
+            } )
+            .done( function( data, textStatus, jqXHR ) {
+              // data = { name => xxx, stdout => text, stderr => text }
+              if ( data.name ) {
+                showLogsWindow( data.name, data.stdout, data.stderr );
+              } else {
+                showMessageCloned( $title_error, $errors[ data.err ] );
+              }
+            } )
+            .fail( function( xhr, textStatus, errorThrown ) {
+              showMessageCloned( $title_error, $errors[ 0 ] );
+            } );
+            
+          } )
+        );
+        msg.append( ' for details.' );
+
+        showMessage( title, msg );
       } else {
         showMessage( $title_error, $errors[ data.err ] );
       }
@@ -289,7 +360,7 @@ $(function() {
     
     return false;
   }
-
+  
   
   /*
    * Set events on tbody tr td
@@ -297,8 +368,8 @@ $(function() {
    
   
   function setCellEvents() {
-   $( 'table tbody tr td' ).click( showEntry );
-   $( 'table tbody #runApp' ).off( 'click', showEntry ).click( runApp );  
+    $( 'table tbody tr td' ).click( showEntry );
+    $( 'table tbody #runApp' ).off( 'click', showEntry ).click( runApp );  
   }
 
 
@@ -451,9 +522,9 @@ $(function() {
       }
     },
     close: function() {
-      form[ 0 ].reset();
+      $( '#editAppForm' )[0].reset();
       tips.text( "All form fields are required." );
-      //allFields.removeClass( "ui-state-error" );
+      $( '#editAppForm :input' ).removeClass( "ui-state-error" );
     }
   } );
 
@@ -551,7 +622,44 @@ $(function() {
       // uitheme : 'jui'
     }
   } );
-
+  
+  function showLogsWindow( name, stdout, stderr ) {
+    var selector = '#log-window';
+    
+    var accordion = $( '<div id="accordion"></div>' );
+    accordion.append( '<h3>Output</h3><div><pre style="padding: 0; margin: 0">' + stdout + '</pre></div>' );
+    accordion.append( '<h3>Errors</h3><div><pre style="padding: 0; margin: 0">' + stderr + '</pre></div>' );
+  
+    var log = $( selector ).dialog( {
+      dialogClass: "no-close",
+      modal : true,
+      autoOpen : false,
+      title : 'Logs of `' + name + "'",
+      width : 600,
+      height : 400,
+      buttons : {
+        Ok : function() {
+          $( this ).dialog( "close" );
+        }
+      },
+      close : function() {
+        $( selector ).empty();
+      },
+      resize : function ( event, ui ) {
+        $( '#accordion' ).accordion( "refresh" );
+      },
+      open : function ( event, ui ) {
+        $( '#accordion' ).accordion( { 
+          collapsible: true,
+          heightStyle: "fill"
+        } );       
+      }
+    } );
+  
+    log.append( accordion ).dialog( 'open' );
+  }
+  
+  $( "#log-window" ).hide();
   
   // fill the table first
   loadEntries();
@@ -622,3 +730,5 @@ $(function() {
 
 <!-- yes/no dialog //-->
 <div id="yesno" title="Confirmation"></div>
+
+<div id="log-window"></div>

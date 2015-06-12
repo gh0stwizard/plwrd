@@ -18,7 +18,8 @@ use AnyEvent;
 use HTTP::Body ();
 use JSON::XS qw( encode_json decode_json );
 use Local::DB::UnQLite;
-use Scalar::Util qw();
+use Scalar::Util ();
+use File::Spec::Functions qw( catfile );
 use vars qw( $PROGRAM_NAME );
 
 
@@ -96,7 +97,7 @@ sub app {
         # run an application
         &run_app( $req, $1 );
       } elsif ( $query =~ /^action=(\w{3,12})&name=(\w{2,16})$/o ) {
-        # applied for actions: getApp
+        # applied for actions: getApp, getLogs
         my $w = $req->start_streaming( 200, \@HEADER_JSON );
         $w->write( &retrieve_data( $req, $1, $2 ) );
         $w->close();
@@ -252,9 +253,57 @@ sub retrieve_data(@) {
     # always returns an array reference
     return 
       encode_json( Local::DB::UnQLite->new( 'apps')->all_json()  );
+  } elsif ( $action eq 'getLogs' ) {
+    # read logs up to 1kb
+    my $err_log = catfile( $BASE_DIR, sprintf( "error_%s.log", $kv ) );
+    my $out_log = catfile( $BASE_DIR, sprintf( "output_%s.log", $kv ) );
+    
+    my $stdout = &read_file( $out_log );
+    my $stderr = &read_file( $err_log );
+    
+    if ( $stdout or $stderr ) {
+      %response = 
+        (
+          'name' => $kv,
+          'stdout' => $stdout,
+          'stderr' => $stderr,
+        )
+      ;
+    } else {
+      %response = ( 'err' => &EINT_ERROR() );
+    }
   }
   
   return encode_json( \%response );
+}
+
+
+=item $data = B<read_file>( $path )
+
+Read data from file $path and returns it.
+
+=cut
+
+
+sub read_file($) {
+  my ( $file ) = @_;
+  
+  open( my $fh, '<:raw', $file ) or do {
+    AE::log error => "open $file: $!";
+    return;
+  };
+  
+  my $data = '';
+  
+  {
+    local $/;
+    $data = scalar <$fh>;
+  }
+  
+  close( $fh )
+    or AE::log error => "close $file: $!";
+  
+  return $data;
 }
 
 
@@ -285,25 +334,28 @@ sub run_app($$) {
       my $s = shift;
 
       AE::log trace => "poll_cb executing %s", $cmd;
+      
+      my $err_log = catfile( $BASE_DIR, sprintf( "error_%s.log", $kv ) );
+      my $out_log = catfile( $BASE_DIR, sprintf( "output_%s.log", $kv ) );
+      
+      run # see backend/feersum.pl for details
+        (
+          'command' => $cmd,
+          'stdout' => $out_log,
+          'stderr' => $err_log,
+          sub {
+            my ( $rv ) = @_;
 
-      run( $cmd, sub { # see backend/feersum.pl
-        my ( $rv, $out ) = @_;
+            &Scalar::Util::weaken( my $w = $w );
+            &Scalar::Util::weaken( my $s = $s );
 
-        AE::log trace => "%s return %d:\n%s", $kv, $rv, $out;
-
-        &Scalar::Util::weaken( my $w = $w );
-        &Scalar::Util::weaken( my $s = $s );
-
-        my %rsp =
-          (
-            'name' => $kv,
-            'result' => $rv,
-            'output' => $out,
-          )
-        ;
-        $s->write( encode_json( \%rsp ) );
-        $s->close();
-      } );
+            $s->write( encode_json( { 'name' => $kv, 'result' => $rv } ) );
+            $s->close();
+            
+            ()
+          }
+        )
+      ;
         
       # poll_cb should call the function run() only once!
       # also keep ref to $w

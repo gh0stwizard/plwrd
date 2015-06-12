@@ -3,6 +3,15 @@ package Local::Run;
 # This is free software; you can redistribute it and/or modify it
 # under the same terms as the Perl 5 programming language system itself.
 
+use strict;
+use warnings;
+use AnyEvent::Log;
+use POSIX qw( :signal_h );
+
+
+our $VERSION = '1.003'; $VERSION = eval "$VERSION";
+
+
 =encoding utf-8
 
 =head1 NAME
@@ -28,14 +37,6 @@ Executing programs with AnyEvent::Fork, AnyEvent::Fork::Pool.
   } );
 
 =cut
-
-use strict;
-use warnings;
-use AnyEvent::Log;
-use POSIX qw( :signal_h );
-
-
-our $VERSION = '1.003'; $VERSION = eval "$VERSION";
 
 
 # disable self logging.
@@ -76,12 +77,28 @@ sub execute(@ ) {
 }
 
 
-=item $result = B<exec_cmd>( $command, [ @args ] )
+=item B<execute_logged>( %setup, $cb )
+
+An interface for AnyEvent::Fork[::Pool] programs.
+See B<exec_cmd_logged>() for details about a hash %setup.
+Calls a callback $cb when executing a program is finished.
+
+=cut
+
+sub execute_logged(@) {
+  AE::log trace => "execute_logged():\n@_";
+
+  &exec_cmd_logged( @_ );
+}
+
+
+=item ( $rv, $out ) = B<exec_cmd>( $command, [ @args ] )
 
 Executes a command $command with additional passed argmuments @args
 (if present).
 
-Returns output of a command or an error string.
+Returns a status $rv (1: success, 0: failed ) and 
+an output of a command or an error string $out.
 
 =cut
 
@@ -114,6 +131,40 @@ sub exec_cmd ($;@) {
   }
   
   return ( 1, $output );
+}
+
+
+=item B<exec_cmd_logged>( %setup )
+
+Same as B<exec_cmd>(), but you have to pass additional arguments.
+The structure of hash setup %setup supposed to be like that:
+
+  %setup = 
+  (
+    stdout => '/path/to/stdout.log', # when missing using /dev/null or NUL on MSWin32
+    stderr => '/path/to/stderr.log', # when missing redirect to stdout
+    command => $command,
+  );
+
+Returns
+
+=cut
+
+sub exec_cmd_logged(%) {  
+  my %setup = @_;
+  
+  my $do = $setup{ 'command' };
+  my $prog = &get_cmd_path( $do );
+
+  my $stdout = $setup{ 'stdout' }; # ( $^O eq 'MSWin32' ) ? 'NUL' : '/dev/null';
+  my $stderr = $setup{ 'stderr' } || '&1';
+  
+  qx( $do 1>$stdout 2>$stderr );
+  my $rv = $?;
+  
+  AE::log trace => "$do 1>$stdout 2>$stderr finished: %d", $rv;
+
+  return $rv == 0;
 }
 
 

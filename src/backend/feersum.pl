@@ -106,7 +106,7 @@ Creates pool of worker processes.
   
     $pool = $PREFORK->require( "Local::Run" )->AnyEvent::Fork::Pool::run
       (
-        "Local::Run::execute",
+        "Local::Run::execute_logged",
         max   => ( scalar AnyEvent::Fork::Pool::ncpu( $max_proc ) ),
         idle  => int( $max_proc / 2 ) || 1,
         load  => $max_load,
@@ -148,7 +148,6 @@ $out is an output string containing both stdout and stderr
     $pool->( @_ );
   }
 
-  
   sub _pool_error_cb {
     AE::log crit => "pool: @_";
     undef $pool;
