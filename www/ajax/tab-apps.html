@@ -274,7 +274,7 @@ $(function() {
             result: command return value
             output: command output log
         */
-        var news = data.result ? ' completed successfully ' : ' failed '
+        var news = ( data.result == 1 ) ? ' completed successfully ' : ' failed '
         var msg = 'Command `' + data.name + "'" + news 
                 + 'with output:<br><pre>' + data.output + '</pre>';
         showMessage( $title_done, msg );

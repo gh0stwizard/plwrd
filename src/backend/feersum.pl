@@ -45,7 +45,7 @@ my %DEFAULT_SETTINGS =
   'APP_NAME'  => 'app+feersum.pl',
   'SOMAXCONN' => &Socket::SOMAXCONN(),
   'PIDFILE'   => '',
-  'MAXPROC'   => 8, # max. number of forked processes
+  'MAXPROC'   => 2, # max. number of forked processes
   'MAXLOAD'   => 2, # max. number of queued queries per worker process
 );
 

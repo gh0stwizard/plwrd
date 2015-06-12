@@ -35,7 +35,7 @@ use AnyEvent::Log;
 use POSIX qw( :signal_h );
 
 
-our $VERSION = '1.002'; $VERSION = eval "$VERSION";
+our $VERSION = '1.003'; $VERSION = eval "$VERSION";
 
 
 # disable self logging.
@@ -91,37 +91,29 @@ sub exec_cmd ($;@) {
 
   my $prog = &get_cmd_path( $do, @opt );
 
-  -e $prog or return ( AE::log error => "%s: %s", $prog, $! );
-
   $do = join( ' ', $prog, @opt ) if ( @opt );
 
-  my ( $output, $status, $exit, $signal, $cdump );
+  my $output = qx( $do 2>&1 ) || return ( 0, $! );
+  my $result = $?;
+  my $exit   = $result >> 8;
+  my $signal = $exit & 127;
+  my $cdump  = $exit & 128 ? "with core dump " : "";
+
+  if ( $signal or $cdump ) {
+    return ( 0, sprintf
+      (
+        "\`%s\' failed %s[exit=%d, signal=%d, result=%d]:\n%s",
+        $do,
+        $cdump,
+        $exit,
+        $signal,
+        $result,
+        $output || '',
+      )
+    );
+  }
   
-  # FIXME: does eval really needed?
-
-  eval {
-    $output = qx( $do 2>&1 );
-    $status = $?;
-    $exit   = $status >> 8;
-    $signal = $exit & 127;
-    $cdump  = $exit & 128 ? "with core dump " : "";
-
-    if ( $signal or $cdump ) {
-      die sprintf
-        (
-          "\`%s\' failed %s[exit=%d, signal=%d, result=%d]:\n%s",
-          $do,
-          $cdump,
-          $exit,
-          $signal,
-          $status,
-          $output,
-        )
-      ;
-    }
-  };
-
-  return $@ ? ( 0, $@ ) : ( 1, $output );
+  return ( 1, $output );
 }
 
 

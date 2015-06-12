@@ -13,7 +13,7 @@ use File::Spec::Functions ();
 use vars qw( $PROGRAM_NAME $VERSION );
 
 
-$PROGRAM_NAME = "plwrd"; $VERSION = '0.02';
+$PROGRAM_NAME = "plwrd"; $VERSION = '0.03';
 
 
 my $retval = GetOptions
@@ -34,6 +34,8 @@ my $retval = GetOptions
   'backend|b=s',	# backend: feersum
   'app|a=s',		# application file
   'www-dir|W=s',	# www directory
+  'max-proc=i',
+  'max-load=i',
 );
 
 # set $\ = "\n"
@@ -266,6 +268,8 @@ sub set_env() {
     'listen'    => join( '_', $prefix, 'LISTEN' ),
     'app'	=> join( '_', $prefix, 'APP_NAME' ),
     'www-dir'   => join( '_', $prefix, 'WWW_DIR' ),
+    'max-proc'	=> join( '_', $prefix, 'MAXPROC' ),
+    'max-load'	=> join( '_', $prefix, 'MAXLOAD' ),
   );
 
   for my $option ( keys %envmap ) {
