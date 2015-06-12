@@ -431,6 +431,7 @@ $(function() {
   function loadEntries() {
     // clean previous records
     tbody.empty();
+    table.trigger( 'updateAll' );
     
     // ask server about records
     var request = '?action=listApps';
@@ -464,7 +465,9 @@ $(function() {
       setCellEvents();
       
       // update table internal structures
-      table.trigger( 'refreshWidgets' ); // zebra widget fix
+      table
+      .trigger( 'update', [ [[ 0, 0 ]] ] )
+      .trigger( 'refreshWidgets' ); // zebra widget fix
 
       return false;
     } )
@@ -483,7 +486,7 @@ $(function() {
   
   function flushTable() {
     $( 'table tbody' ).empty();
-    $( 'table' ).trigger( "update", [ true ] );
+    $( 'table' ).trigger( "updateAll", [ true ] );
     return false;
   }
 
@@ -753,12 +756,14 @@ $(function() {
   </thead>
   <!-- data placeholder //-->
   <tbody>
+  <!--
     <tr>
       <td>test</td>
       <td>admin</td>
       <td>dont delete</td>
       <td>&nbsp;</td>
-    </tr>  
+    </tr>
+  //-->
   </tbody>
 </table>
 
