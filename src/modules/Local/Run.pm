@@ -70,7 +70,7 @@ Calls a callback $cb when executing a program is finished.
 
 
 sub execute(@ ) {
-  AE::log trace => "PID=$$ run:\n@_";
+  AE::log trace => "execute():\n@_";
 
   &exec_cmd( @_ );
 }

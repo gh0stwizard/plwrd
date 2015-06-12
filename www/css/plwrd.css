@@ -6,3 +6,11 @@ body {
 .no-close .ui-dialog-titlebar-close {
   display: none;
 }
+
+.tablesorter-jui td:nth-child(4) {
+  text-align: center;
+}
+
+.tablesorter-jui td {
+  vertical-align: middle;
+}

@@ -14,6 +14,7 @@ $(function() {
   var $icon_notice = '<span class="ui-icon ui-icon-notice" style="float:left; margin:3px 7px 50px 0;"></span>';
   var $icon_alert = '<span class="ui-icon ui-icon-alert" style="float:left; margin:3px 7px 50px 0;"></span>';
   var $icon_check = '<span class="ui-icon ui-icon-check" style="float:left; margin:3px 7px 50px 0;"></span>';
+  var $icon_play = '<div align="center" style="margin: 0; padding: 0;"><span class="ui-icon ui-icon-play"></span></div>';
   var $errors = [
     "<p>" + $icon_notice + "Connection error. Try again later.</p>",
     "<p>" + $icon_notice + "Bad request</p>",
@@ -138,11 +139,12 @@ $(function() {
   function addEntryIntoTable( n, u, c ) {
     tbody.append( '<tr><td>' + n.val()
       + '</td><td>' + u.val()
-      + '</td><td>' + c.val() + '</td></tr>' );
+      + '</td><td>' + c.val() 
+      + '</td><td id="runApp">' + $icon_play + '</td></tr>' );
       
     // register on click event to show dialog window
     // about an entry
-    $( 'table tbody tr td' ).click( showEntry );
+    setCellEvents();
 
     table.trigger( "update", [ true ] );
     return false;
@@ -222,6 +224,83 @@ $(function() {
       } );
    }
 
+  /*
+   * Find application name
+   */
+  
+  
+  function findAppName( el ) {
+    var e = el;
+    var steps = 5;
+    var n;
+  
+    for ( var i = 0; i < steps; i++ ) {
+      var t = e.parentNode;
+
+      if ( t.nodeName == 'TR' ) {
+        n = $( t ).children().first().text();
+        break;
+      } else {
+        e = t;
+      }
+    }
+    
+    return n;
+  }
+
+
+  /*
+   * Run application table td callback
+   */
+
+  
+  function runApp( event ) {
+    event = event || window.event;
+    var e = event.target || event.srcElement;
+    var n = findAppName( e );
+    var request = '?action=runApp&name=' + n;
+    
+    $.ajax( {
+      url : $addr + $action + request,
+      type : 'GET',
+      dataType : 'json',
+      async : false
+    } )
+    .done( function( data, textStatus, jqXHR ) {
+
+      if ( data.name ) {
+        /*
+          data fields:
+            result: command return value
+            output: command output log
+        */
+        var news = data.result ? ' completed successfully ' : ' failed '
+        var msg = 'Command `' + data.name + "'" + news 
+                + 'with output:<br><pre>' + data.output + '</pre>';
+        showMessage( $title_done, msg );
+      } else {
+        showMessage( $title_error, $errors[ data.err ] );
+      }
+
+    } )
+    .fail( function( data, textStatus, errorThrown ) {
+      showMessage( $title_error, $errors[ 0 ] );
+    } );
+    
+    return false;
+  }
+
+  
+  /*
+   * Set events on tbody tr td
+   */
+   
+  
+  function setCellEvents() {
+   $( 'table tbody tr td' ).click( showEntry );
+   $( 'table tbody #runApp' ).off( 'click', showEntry ).click( runApp );  
+  }
+
 
   /*
    * A callback for entry: show dialog window
@@ -231,9 +310,7 @@ $(function() {
   function showEntry( event ) {
     event = event || window.event;
     var e = event.target || event.srcElement;
-    var t = e.parentNode;    
-    var n = $( t ).children().first().text(); // name
-    
+    var n = findAppName( e );
     var request = '?action=getApp&name=' + n;
     
     $.ajax( {
@@ -244,9 +321,11 @@ $(function() {
     } )
     .done( function( data, textStatus, jqXHR ) {
       if ( data.name ) {
-        // $( "#editAppForm" ).serialize() does not contains a
-        // field with disabled attribute in input field.
-        // duplicate this entry and made it hidden.
+        /*
+          $( "#editAppForm" ).serialize() does not contains a
+          field with disabled attribute in input field.
+          duplicate this entry and made it hidden.
+        */
         $( '#editAppForm #name' ).val( data.name );
         $( '#editAppForm #name-ui' ).val( data.name );
         $( '#editAppForm #cmd' ).val( data.cmd );
@@ -289,12 +368,13 @@ $(function() {
         var entry = data[ i ];
         tbody.append( '<tr><td>'  + entry.name 
                     + '</td><td>' + entry.user
-                    + '</td><td>' + entry.cmd  + '</td></tr>' );
+                    + '</td><td>' + entry.cmd  
+                    + '</td><td id="runApp">' + $icon_play + '</td></tr>' );
       }
       
       // register on click event to show dialog window
       // about an entry
-      $( 'table tbody tr td' ).click( showEntry );
+      setCellEvents();
       
       // update table internal structures
       table.trigger( "update", [ true ] );
@@ -524,11 +604,13 @@ $(function() {
 <button id="wipe-apps">Wipe</button>
 
 <table class="tablesorter">
+  <colgroup><col><col><col><col width="1%"></colgroup>
   <thead>
     <tr>
       <th>Name</th>
       <th>User</th>
       <th>Application</th>
+      <th><!-- micro buttons //--></th>
     </tr>
   </thead>
   <!-- data placeholder //-->

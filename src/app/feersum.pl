@@ -92,8 +92,11 @@ sub app {
         my $w = $req->start_streaming( 200, \@HEADER_JSON );
         $w->write( &retrieve_data( $req, $1 ) );
         $w->close();
+      } elsif ( $query =~ /^action=runApp&name=(\w{2,16})$/o ) {
+        # run an application
+        &run_app( $req, $1 );
       } elsif ( $query =~ /^action=(\w{3,12})&name=(\w{2,16})$/o ) {
-        # applied for actions: getApp, runApp
+        # applied for actions: getApp
         my $w = $req->start_streaming( 200, \@HEADER_JSON );
         $w->write( &retrieve_data( $req, $1, $2 ) );
         $w->close();
@@ -116,7 +119,7 @@ sub app {
     &_405( $req );
   }
   
-  return $req;
+  return;
 }
 
 
@@ -226,10 +229,7 @@ sub store_data($$$) {
 
 =item $json = B<retrieve_data>( $request, $action, [ $key ] )
 
-Either retrieves data from a database or performs an action.
-
-When possible returns a JSON string immediatly, when not returns nothing,
-but calls $request->write( $json ) by itself later.
+Retrieves a data from a database.
 
 =cut
 
@@ -239,42 +239,7 @@ sub retrieve_data(@) {
   
   my %response = ( 'err' => &NOT_IMPLEMENTED() );
   
-  if ( $action eq 'runApp' ) {
-    # run application
-
-    if ( my $data = Local::DB::UnQLite->new( 'apps' )>fetch( $kv ) ) {
-      AE::log trace => "%s: %s", $kv, $data;
-
-      my $cb = sub {
-        my ( $rv, $out ) = @_;
-
-        AE::log trace => "%s return %d: %s", $kv, $rv, $out;
-
-        &Scalar::Util::weaken( my $r = $r );
-        
-        my $w = $r->start_streaming( 200, \@HEADER_JSON );
-        $w->write( encode_json(
-          {
-            'action' => 'runApp',
-            'name' => $kv,
-            'result' => $rv,
-            'output' => $out,
-          } 
-        ) );
-        $w->close();
-      };
-
-      my $json = decode_json( $data );
-      # see backend/feersum.pl
-      run( $json->{ 'cmd' }, $cb );
-      
-      # deffered response
-      return;
-    } else {
-      %response = ( 'err' => &NOT_FOUND() );
-    }
-    
-  } elsif ( $action eq 'getApp' ) {
+  if ( $action eq 'getApp' ) {
     # get info about an app
     
     if ( my $data = Local::DB::UnQLite->new( 'apps' )->fetch( $kv ) ) {
@@ -290,6 +255,68 @@ sub retrieve_data(@) {
   }
   
   return encode_json( \%response );
+}
+
+
+=item run_app( $request, $key )
+
+Runs asyncronously an application with a name $key.
+Returns nothing.
+
+=cut
+
+
+sub run_app($$) {
+  my ( $r, $kv ) = @_;
+
+  my $apps = Local::DB::UnQLite->new( 'apps' );
+    
+  AE::log trace => "runApp name = %s", $kv;
+
+  if ( my $data = $apps->fetch( $kv ) ) {
+    AE::log trace => "%s: %s", $kv, $data;
+
+    my $json = decode_json( $data );
+    my $cmd = $json->{ 'cmd' };
+
+    # deffered response
+    my $w = $r->start_streaming( 200, \@HEADER_JSON );
+    $w->poll_cb( sub {
+      my $s = shift;
+
+      AE::log trace => "poll_cb executing %s", $cmd;
+
+      run( $cmd, sub { # see backend/feersum.pl
+        my ( $rv, $out ) = @_;
+
+        AE::log trace => "%s return %d:\n%s", $kv, $rv, $out;
+
+        &Scalar::Util::weaken( my $w = $w );
+        &Scalar::Util::weaken( my $s = $s );
+
+        my %rsp =
+          (
+            'name' => $kv,
+            'result' => $rv,
+            'output' => $out,
+          )
+        ;
+        $s->write( encode_json( \%rsp ) );
+        $s->close();
+      } );
+        
+      # poll_cb should call the function run() only once!
+      # also keep ref to $w
+      $w->poll_cb( undef );
+    } );
+      
+  } else {
+    my $w = $r->start_streaming( 200, \@HEADER_JSON );
+    $w->write( encode_json( { 'err' => &NOT_FOUND() } ) );
+    $w->close();
+  }
+  
+  return;
 }
 
 

@@ -206,7 +206,7 @@ Calls kv_fetch( $key ).
 =cut
 
 
-sub fetch($) {
+sub fetch($$) {
   #my ( $self, $key ) = @_;
   
   my $db = _get_instance ${ $_[0] };
@@ -226,7 +226,7 @@ C<JSON::XS::decode_json()> function.
 =cut
 
 
-sub fetch_json($) {
+sub fetch_json($$) {
   #my ( $self, $key ) = @_;
   
   my $db = _get_instance ${ $_[0] };
