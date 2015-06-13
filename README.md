@@ -138,9 +138,10 @@ All types of requests are using JSON encoding.
 
 ## How to catch an error ##
 
-All types of requests returns a hash object with
-only one key <code>err</code>. The value for the key
-is a number with an error code.
+When an error occurs on the server side, the server will response with
+a hash object. In that case _all_ types of requests returns 
+the hash object with only one key <code>err</code>.
+The value for the key is a number with an error code.
 
 Currently, the server is using next error codes:
 
