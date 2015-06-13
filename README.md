@@ -49,8 +49,13 @@ To run the listener on all interfaces and addresses you have to run
 the server as described below:
 
 ```
-shell> perl src/main.pl --listen 0.0.0.0:28990
+shell> PERL5LIB=src/modules perl src/main.pl --listen 0.0.0.0:28990
 ```
+
+The <code>PERL5LIB</code> environment variable is required and 
+says Perl where is the additional modules are placed. So, 
+you have not to copy (install) modules by a hand to start 
+a program.
 
 # Options #
 
@@ -115,7 +120,7 @@ For instance, for Twiggy, you may create file <code>src/backend/twiggy.pl</code>
 Then run the server in this way:
 
 ```
-shell> perl src/main.pl --backend=twiggy
+shell> PERL5LIB=src/modules perl src/main.pl --backend=twiggy
 ```
 
 Note that the extention of the file was ommitted, as well as full path to
