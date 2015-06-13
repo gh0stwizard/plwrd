@@ -342,9 +342,10 @@ sub run_app($$) {
 
     # deffered response
     my $w = $r->start_streaming( 200, \@HEADER_JSON );
+
     $w->poll_cb( sub {
       my $s = shift;
-
+      
       AE::log trace => "poll_cb executing: %s", $cmd;
       
       my $err_log = catfile( $BASE_DIR, sprintf( "error_%s.log", $kv ) );
@@ -366,10 +367,9 @@ sub run_app($$) {
 
             $s->write( encode_json( { 'name' => $kv, 'result' => $rv } ) );
             $s->close();
-            
-            ()
+            undef $w, $s;
           }
-        )
+        );
       ;
         
       # poll_cb should call the function run() only once!

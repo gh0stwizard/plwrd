@@ -13,6 +13,7 @@ body {
 
 .tablesorter-jui td {
   vertical-align: middle;
+  cursor: default;
 }
 
 a.xlink {

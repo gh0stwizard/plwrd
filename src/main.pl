@@ -368,6 +368,12 @@ sub print_help() {
   printf $h, "--home [-H] arg", "working directory after fork";
   printf $h, "", "- default: root directory";
   printf $h, "--www-dir [-W] arg", "www directory with index.html";
+  printf $h, "", "- default is ../www";
+  
+  printf $h, "--max-proc arg", "max number of worker processes";
+  printf $h, "- default is 4";
+  printf $h, "--max-load arg", "max number of queued commands per worker";
+  printf $h, "- default is 1";
   
   printf $h, "--debug", "be verbose";
   printf $h, "--verbose", "be very verbose";

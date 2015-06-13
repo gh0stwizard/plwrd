@@ -29,6 +29,7 @@ $(function() {
     table = $( "table" ),
     tbody = $( "table tbody" ),
     name = $( "#addAppForm #name" ),
+    nameRegex = /^[a-z]([0-9a-z_\s])+$/i,
     user = $( "#addAppForm #user" ),
     cmd = $( "#addAppForm #cmd" ),
     tips = $( ".validateTips" );
@@ -47,6 +48,16 @@ $(function() {
       o.addClass( "ui-state-error" );
       updateTips( "Length of " + n + " must be between " 
                 + min + " and " + max + "." );
+      return false;
+    } else {
+      return true;
+    }
+  }
+  
+  function checkRegexp( o, regexp, n ) {
+    if ( !( regexp.test( o.val() ) ) ) {
+      o.addClass( "ui-state-error" );
+      updateTips( n );
       return false;
     } else {
       return true;
@@ -132,10 +143,12 @@ $(function() {
     var t = "<p>" + $icon_alert + text + "</p>";
     d.append( t ).dialog( "open" );
   }
+
   
   /*
    * Add application button callback
    */
+
 
   function createApp() {
     var valid = true;
@@ -143,6 +156,8 @@ $(function() {
     $( '#addAppForm :input').removeClass( "ui-state-error" );
     
     valid = valid && checkLength( name, "name", 2, 16 );
+    valid = valid && checkRegexp( name, nameRegex,
+      "Username may consist of a-z, 0-9, underscores, spaces and must begin with a letter." );
     valid = valid && checkLength( user, "user", 1, 16 );
     valid = valid && checkLength( cmd, "command", 1, 256 );
         
@@ -150,7 +165,7 @@ $(function() {
       $.ajax( {
         url: $addr + $action,
         type: "POST",
-        async: false,
+        async: true,
         data: $( "#addAppForm" ).serialize(),
         dataType: "json",
         cache: false,
@@ -209,7 +224,7 @@ $(function() {
       $.ajax( {
         url: $addr + $action,
         type: "POST",
-        async: false,
+        async: true,
         data: $( "#editAppForm" ).serialize(),
         dataType: "json",
         cache: false,
@@ -244,7 +259,7 @@ $(function() {
       $.ajax( {
         url : $addr + $action,
         type : 'POST',
-        async : false,
+        async : true,
         data : { action : 'delApp', name : n },
         dataType : 'json',
         cache : false
@@ -301,11 +316,14 @@ $(function() {
     var n = findAppName( e );
     var request = '?action=runApp&name=' + n;
     
+    // prevent multiple clicks
+    $( 'table tbody #runApp' ).off( 'click', runApp );
+    
     $.ajax( {
       url : $addr + $action + request,
       type : 'GET',
       dataType : 'json',
-      async : false,
+      async : true,
       cache : false
     } )
     .done( function( data, textStatus, jqXHR ) {
@@ -339,7 +357,7 @@ $(function() {
               url : url,
               type : 'GET',
               dataType : 'JSON',
-              async : false,
+              async : true,
               cache : false
             } )
             .done( function( data, textStatus, jqXHR ) {
@@ -349,6 +367,7 @@ $(function() {
               } else {
                 showMessageCloned( $title_error, $errors[ data.err ] );
               }
+              
             } )
             .fail( function( xhr, textStatus, errorThrown ) {
               showMessageCloned( $title_error, $errors[ 0 ] );
@@ -362,10 +381,12 @@ $(function() {
       } else {
         showMessage( $title_error, $errors[ data.err ] );
       }
-
+      
+      $( 'table tbody #runApp' ).click( runApp );
     } )
     .fail( function( data, textStatus, errorThrown ) {
       showMessage( $title_error, $errors[ 0 ] );
+      $( 'table tbody #runApp' ).click( runApp );      
     } );
     
     return false;
@@ -397,7 +418,7 @@ $(function() {
     $.ajax( {
       url : $addr + $action + request,
       type : 'GET',
-      async : false,
+      async : true,
       dataType : 'json',
       cache : false
     } )
@@ -439,7 +460,7 @@ $(function() {
     $.ajax( {
       url : $addr + $action + request,
       type : 'GET',
-      async : false,
+      async : true,
       dataType : 'json',
       cache : false
     } )
@@ -623,7 +644,7 @@ $(function() {
         $.ajax( {
           url: $addr + $action,
           type: "POST",
-          async: false,
+          async: true,
           data: { action: "wipeApps" },
           dataType: "json",
           cache: false,
