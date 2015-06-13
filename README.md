@@ -1,15 +1,15 @@
-# plwrd
+# plwrd #
 
 plwrd - Perl Web Run Daemon, an HTTP application runner written in [Perl](http://www.perl.org).
 
-# Why?
+# Why? #
 
 Just for fun. The possible usecases:
 
 * Personal usage
 * Internal usage inside a company
 
-# Dependencies
+# Dependencies #
 
 This software requires next modules and libraries installed
 via CPAN or other Perl package management system:
@@ -30,7 +30,7 @@ via CPAN or other Perl package management system:
 * AnyEvent::Fork::RPC
 * AnyEvent::Fork::Pool
 
-# Usage
+# Usage #
 
 The program is splitted in three major parts:
 
@@ -52,7 +52,7 @@ the server as described below:
 shell> perl src/main.pl --listen 0.0.0.0:28990
 ```
 
-# Options
+# Options #
 
 Use the option **--help** to see all available options:
 
@@ -98,7 +98,7 @@ Miscellaneous options:
 
 ```
 
-# Usage with nginx
+# Usage with nginx #
 
 The server is able to work together with [nginx](http://nginx.org).
 The sample configuration file for nginx is placed in <code>conf/nginx/plwrd.conf</code>.
@@ -106,7 +106,7 @@ The sample configuration file for nginx is placed in <code>conf/nginx/plwrd.conf
 Using plwrd together with nginx is a good idea, because nginx is intended 
 to cache static files.
 
-# Development & Customization
+# Development & Customization #
 
 The starter script <code>main.pl</code> was made to be independent
 on a backend code, as possible at least.
@@ -120,3 +120,133 @@ shell> perl src/main.pl --backend=twiggy
 
 Note that the extention of the file was ommitted, as well as full path to
 file.
+
+In the same way you may create your own application.
+
+
+# API #
+
+## Introduction ##
+
+A server side works together with a frontend side via AJaX requests.
+Requests are splitted into two groups: GET and POST. The GET requests
+are using mostly for retrieving a data from the server. Meantime the
+POST requests are using for storing a data on the server.
+
+All types of requests are using JSON encoding.
+
+## How to catch an error ##
+
+All types of requests returns a hash object with
+only one key <code>err</code>. The value for the key
+is a number with an error code.
+
+Currently, the server is using next error codes:
+
+* <code>0</code>: Connection error
+* <code>1</code>: Bad request
+* <code>2</code>: Not implemented
+* <code>3</code>: Internal error
+* <code>4</code>: Duplicate entry in a database
+* <code>5</code>: Not found
+
+
+## GET requests ##
+
+Currently, all GET requests are using the next semantic:
+
+```
+?action=ACTION&name=NAME
+```
+
+where is ACTION means a command to execute on the server,
+and NAME is additional argument. Some actions runs without
+the NAME parameter.
+
+A list of actions and their descriptions:
+
+* listApp
+* getApp
+* getLogs
+
+### listApp ###
+
+* Parameters: none
+* Returns: an array of hashes
+
+Each hash contains name, cmd and user attributes.
+
+If an error occurs a common error hash with the key <code>err</code>
+is returned. This note is also applied to _all_ requests.
+
+### getApp ###
+
+* Parameters: name
+* Returns: a hash object
+
+On success the hash object contains name, cmd and user attributes.
+
+### getLogs ###
+
+* Parameters: name
+* Returns: a hash object
+
+On success the hash object contains:
+
+* <code>name</code>: the name of requested app
+* <code>stdout</code>: a text of stdout output
+* <code>stderr</code>: a text of stderr output
+
+Otherwise, returns a hash with an <code>err</code> attribute.
+
+
+## POST requests ##
+
+The POST requests are working like the GET requests. They are
+also using parameters ACTION and NAME like shows above. In an
+addition POST requests may have other parameters, all of them
+are described below.
+
+A list of actions and their descriptions:
+
+* addApp
+* delApp
+* editApp
+* wipeApps
+
+### addApp ###
+
+* Parameters: name, cmd, user
+* Returns: a hash object
+
+Stores an application record to a database on the server side.
+
+On success returns a hash object with a <code>name</code> attribute.
+
+### delApp ###
+
+* Parameters: name
+* Returns: a hash object
+
+Removes a record from a database.
+
+On success returns a hash object with a <code>name</code> attribute.
+
+### editApp ###
+
+* Parameters: name, cmd, user
+* Returns: a hash object
+
+Updates an application record with the name <code>name</code>.
+
+On success returns a hash object with a <code>name</code> attribute.
+
+### wipeApps ###
+
+* Parameters: none
+* Returns: a hash object
+
+Deletes all application records from a datase.
+
+On success returns a hash object with a <code>wiped</code> attribute.
+The value is a number of deleted records.
