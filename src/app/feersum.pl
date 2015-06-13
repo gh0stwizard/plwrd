@@ -275,7 +275,7 @@ sub retrieve_data(@) {
     my $stdout = &read_file( $out_log );
     my $stderr = &read_file( $err_log );
     
-    if ( $stdout or $stderr ) {
+    if ( defined( $stdout ) or defined( $stderr ) ) {
       %response = 
         (
           'name' => $kv,

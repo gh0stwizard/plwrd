@@ -372,7 +372,7 @@ sub set_euid($$) {
     $> = 0;
 
     if ( $! )  {
-      AE::log error => "set_euid failed take back root privs: %s", $!;
+      AE::log error => "set_euid failed take back root: %s", $!;
       return 0;
     }
     

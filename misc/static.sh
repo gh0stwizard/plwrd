@@ -16,6 +16,10 @@ else
 	exit 1
 fi
 
+if [ ! -d "bin" ]; then
+	mkdir bin || exit 1
+fi
+
 ${SP_FILE} mkapp ${BIN_DIR}/$APPNAME --boot ${BOOT_FILE} \
 -Msort.pm \
 -Mfeature.pm \
@@ -46,7 +50,6 @@ ${SP_FILE} mkapp ${BIN_DIR}/$APPNAME --boot ${BOOT_FILE} \
 -MFeersum \
 -MIO::File \
 -MHTTP::Body \
--MMIME::Type::FileName \
 -MUnQLite \
 -MMath::BigInt \
 -MIO::FDPass \
