@@ -121,7 +121,8 @@ shell> perl src/main.pl --backend=twiggy
 Note that the extention of the file was ommitted, as well as full path to
 file.
 
-In the same way you may create your own application.
+In the same way you may create your own application file, e.g. 
+<code>src/app/mojo.pl</code>.
 
 
 # API #
