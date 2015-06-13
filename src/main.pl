@@ -13,7 +13,7 @@ use File::Spec::Functions ();
 use vars qw( $PROGRAM_NAME $VERSION );
 
 
-$PROGRAM_NAME = "plwrd"; $VERSION = '0.03';
+$PROGRAM_NAME = "plwrd"; $VERSION = '0.04';
 
 
 my $retval = GetOptions
@@ -21,7 +21,7 @@ my $retval = GetOptions
   \my %options,
   'help|h',             # print help page and exit
   'version',            # print program version and exit
-  'debug',		# enables verbose logging
+  'debug',              # enables verbose logging
   'verbose',            # enables very verbose logging
   'pidfile|P=s',        # pid file ( optional )
   'home|H=s',           # chdir to home directory before fork
@@ -31,11 +31,13 @@ my $retval = GetOptions
   'syslog-facility=s',  # syslog facility
   'quiet|q',            # enable silence mode (no log at all)
   'listen|l=s',         # listen on IP:PORT
-  'backend|b=s',	# backend: feersum
-  'app|a=s',		# application file
-  'www-dir|W=s',	# www directory
-  'max-proc=i',
-  'max-load=i',
+  'backend|b=s',        # backend: feersum
+  'app|a=s',            # application file
+  'www-dir|W=s',        # www directory
+  'max-proc=i',         # max number of worker processes
+  'max-load=i',         # max number of queued commands to workers
+  'chroot-dir|C=s',     # chroot directory
+  'euid=s',             # effective uid
 );
 
 # set $\ = "\n"
@@ -219,6 +221,7 @@ sub set_abs_paths() {
     home
     pidfile
     www-dir
+    chroot-dir
   );
 
   for my $option ( @pathopts ) {
@@ -264,12 +267,13 @@ sub set_env() {
   my %envmap = 
   (
     #  %options        %ENV
-    'pidfile'   => join( '_', $prefix, 'PIDFILE' ),
-    'listen'    => join( '_', $prefix, 'LISTEN' ),
-    'app'	=> join( '_', $prefix, 'APP_NAME' ),
-    'www-dir'   => join( '_', $prefix, 'WWW_DIR' ),
-    'max-proc'	=> join( '_', $prefix, 'MAXPROC' ),
-    'max-load'	=> join( '_', $prefix, 'MAXLOAD' ),
+    'pidfile'     => join( '_', $prefix, 'PIDFILE' ),
+    'listen'      => join( '_', $prefix, 'LISTEN' ),
+    'app'	        => join( '_', $prefix, 'APP_NAME' ),
+    'www-dir'     => join( '_', $prefix, 'WWW_DIR' ),
+    'max-proc'	  => join( '_', $prefix, 'MAXPROC' ),
+    'max-load'    => join( '_', $prefix, 'MAXLOAD' ),
+    'chroot-dir'  => join( '_', $prefix, 'CHROOT' ),
   );
 
   for my $option ( keys %envmap ) {
@@ -354,35 +358,50 @@ sub print_help() {
 
   printf $h, "--help [-h]", "prints this information";
   printf $h, "--version", "prints program version";
+  
+  print;
+  print "Web server options:";
 
   printf $h, "--listen [-l] arg", "IP:PORT for listener";
-  printf $h, "", "- default: \"127.0.0.1:28990\"";
-
-  printf $h, "--backend [-b] arg", "backend name (default: feersum)";
-  printf $h, "--app [-a] arg", "application name (default: feersum)";
-  
+  printf $h, "", "- default: \"127.0.0.1:28990\"";  
   printf $h, "--background [-B]", "run process in background";
   printf $h, "", "- default: run in foreground (disables logging)";
-  printf $h, "", "- hint: use --logfile / --enable-syslog for logging";
-
-  printf $h, "--home [-H] arg", "working directory after fork";
-  printf $h, "", "- default: root directory";
   printf $h, "--www-dir [-W] arg", "www directory with index.html";
   printf $h, "", "- default is ../www";
+  printf $h, "", "- useful when the program is running standalone";
+  
+  print "Worker pool options:";
   
   printf $h, "--max-proc arg", "max number of worker processes";
-  printf $h, "- default is 4";
+  printf $h, "", "- default is 4";
   printf $h, "--max-load arg", "max number of queued commands per worker";
-  printf $h, "- default is 1";
+  printf $h, "", "- default is 1";
+  
+  print "Security options:";
+  
+  printf $h, "--home [-H] arg", "working directory after fork";
+  printf $h, "", "- default: root directory";  
+  printf $h, "--chroot-dir [-C] arg", "chroot directory";
+  printf $h, "", "- works only when the program is started under root";
+  printf $h, "", "- you have to copy apps and libs to this directory";
+  printf $h, "--euid arg", "drop privileges to this user id";
+  printf $h, "", "- default is nobody";
+  
+  print "Logging options:";
   
   printf $h, "--debug", "be verbose";
   printf $h, "--verbose", "be very verbose";
-  printf $h, "--quiet [-q]", "be silence, disables logging";
-  printf $h, "--enable-syslog", "enable logging via syslog (default: disabled)";
-  printf $h, "--syslog-facility arg", "syslog's facility (default: LOG_DAEMON)";
-  printf $h, "--logfile [-L] arg", "path to log file (default: stdout)";
+  printf $h, "--quiet [-q]", "disables logging totally";
+  printf $h, "--enable-syslog", "enable logging via syslog";
+  printf $h, "--syslog-facility arg", "syslog's facility (default is LOG_DAEMON)";
+  printf $h, "--logfile [-L] arg", "path to log file (default is stdout)";
+  
+  print;
+  print "Miscellaneous options:";
 
   printf $h, "--pidfile [-P] arg", "path to pid file (default: none)";
+  printf $h, "--backend [-b] arg", "backend name (default: feersum)";
+  printf $h, "--app [-a] arg", "application name (default: feersum)";
 }
 
 sub print_version() {

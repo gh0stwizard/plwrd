@@ -174,6 +174,8 @@ Start a server process.
 
   
 sub start_server() {
+  &drop_privileges();
+
   &enable_syslog();
   &debug_settings();
   &update_settings();
@@ -536,7 +538,8 @@ sub debug_settings() {
   );
   
   # print ENV values
-  AE::log debug => "%s = %s", $_, $ENV{ $_ } || "" for ( @envopts );
+  AE::log debug => "%s = %s", $_, $ENV{ $_ } || "" 
+    for ( sort @envopts );
   
   # print program settings
   AE::log debug => "%s = %s", $_, $CURRENT_SETTINGS{ $_ }
@@ -574,6 +577,48 @@ sub unlink_pidfile() {
   my $file = $CURRENT_SETTINGS{ 'PIDFILE' } || return;
   unlink( $file )
     or AE::log error => "unlink pidfile %s: %s", $file, $!;
+}
+
+
+=item B<drop_privileges>()
+
+Sets effective uid and guid of process to nobody:nobody when
+the program is started under root (uid = 0). When this check
+is passed does chroot() to a program base directory. Otherwise,
+does nothing.
+
+=cut
+
+
+sub drop_privileges($) {
+  my ( $euser ) = @_;
+  
+  $euser ||= 'nobody';
+  
+  # do nothing when is not root
+  $< == 0 or return;
+  
+  # remember euid, ename before chroot
+  # otherwise getpwnam, getpwuid could not find out /etc/passwd
+  my $euid = getpwnam( $euser );
+  my $name = getpwuid( $euid );
+  
+  # chroot() first
+  
+  if ( $ENV{ join( '_', uc( $PROGRAM_NAME ), 'CHROOT' ) } ) {
+    my $basedir = $ENV{ join( '_', uc( $PROGRAM_NAME ), 'BASEDIR' ) };
+    chroot( $basedir )
+      or AE::log fatal => "chroot( %s ): %s", $basedir, $!;  
+    chdir( '/' )
+      or AE::log fatal => "chdir( / ): %s", $!;
+    AE::log debug => "chroot'ed to \`%s\'", $basedir;
+  }
+  
+  # drop privs
+  
+  $> = $euid;
+  $! and AE::log fatal => "drop_privileges [seteuid(%s)]: %s", $euid, $!;
+  AE::log debug => "effective uid: %s (%d)", $name, $>;
 }
 
 

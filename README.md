@@ -59,25 +59,43 @@ Use the option **--help** to see all available options:
 ```
 shell> perl src/main.pl --help
 Allowed options:
-  --help [-h]              prints this information
-  --version                prints program version
-  --listen [-l] arg        IP:PORT for listener
-                           - default: "127.0.0.1:28990"
-  --backend [-b] arg       backend name (default: feersum)
-  --app [-a] arg           application name (default: feersum)
-  --background [-B]        run process in background
-                           - default: run in foreground (disables logging)
-                           - hint: use --logfile / --enable-syslog for logging
-  --home [-H] arg          working directory after fork
-                           - default: root directory
-  --www-dir [-W] arg       www directory with index.html
-  --debug                  be verbose
-  --verbose                be very verbose
-  --quiet [-q]             be silence, disables logging
-  --enable-syslog          enable logging via syslog (default: disabled)
-  --syslog-facility arg    syslog's facility (default: LOG_DAEMON)
-  --logfile [-L] arg       path to log file (default: stdout)
-  --pidfile [-P] arg       path to pid file (default: none)
+  --help [-h]              prints this information                         
+  --version                prints program version                          
+
+Web server options:
+  --listen [-l] arg        IP:PORT for listener                            
+                           - default: "127.0.0.1:28990"                    
+  --background [-B]        run process in background                       
+                           - default: run in foreground (disables logging) 
+  --www-dir [-W] arg       www directory with index.html                   
+                           - default is ../www                             
+                           - useful when the program is running standalone 
+Worker pool options:
+  --max-proc arg           max number of worker processes                  
+                           - default is 4                                  
+  --max-load arg           max number of queued commands per worker        
+                           - default is 1                                  
+Security options:
+  --home [-H] arg          working directory after fork                    
+                           - default: root directory                       
+  --chroot-dir [-C] arg    chroot directory                                
+                           - works only when the program is started under root
+                           - you have to copy apps and libs to this directory
+  --euid arg               drop privileges to this user id                 
+                           - default is nobody                             
+Logging options:
+  --debug                  be verbose                                      
+  --verbose                be very verbose                                 
+  --quiet [-q]             disables logging totally                        
+  --enable-syslog          enable logging via syslog                       
+  --syslog-facility arg    syslog's facility (default is LOG_DAEMON)       
+  --logfile [-L] arg       path to log file (default is stdout)            
+
+Miscellaneous options:
+  --pidfile [-P] arg       path to pid file (default: none)                
+  --backend [-b] arg       backend name (default: feersum)                 
+  --app [-a] arg           application name (default: feersum)             
+
 ```
 
 # Usage with nginx
