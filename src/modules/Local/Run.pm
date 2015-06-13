@@ -190,10 +190,30 @@ sub exec_cmd_logged(%) {
 
 =item B<exec_cmd_logged_safe>( %setup )
 
-Same as B<exec_cmd_logged>() but with an additional argument
-to setup command execution timeout.
+Same as B<exec_cmd_logged>() but with additional arguments:
 
-Default timeout is 10 seconds.
+=over
+
+=item timeout
+
+Limit command execution by timeout value in seconds.
+Default is 10.
+
+=item euid
+
+Calls B<seteuid>() system call to change an effective user id.
+
+Use this only combined with B<chroot> parameter.
+
+=item chroot
+
+Chroot to a specified directory. The B<chroot>() system call
+used only at first time because there is too much work to
+escape chroot environment.
+
+Use this only combined with B<euid> parameter.
+
+=back
 
 =cut
 
@@ -201,17 +221,51 @@ Default timeout is 10 seconds.
 sub exec_cmd_logged_safe(%) {
   my %setup = @_;
   
+  my $ename = $setup{ 'euid' };
+  my $chroot_dir = $setup{ 'chroot' };
+  
+  if ( $ename and $chroot_dir ) {
+    &set_euid( $ename, $chroot_dir )
+      or AE::log error => "set_euid %s failed", $ename;
+  }
+  
   my $do = $setup{ 'command' };
   my $prog = &get_cmd_path( $do );
 
-  my $stdout = $setup{ 'stdout' }; # ( $^O eq 'MSWin32' ) ? 'NUL' : '/dev/null';
+  my $stdout = $setup{ 'stdout' } || '/dev/null';
   my $stderr = $setup{ 'stderr' } || '&1';
-  
-  my $rv;
   my $timeout = $setup{ 'timeout' } || 10;
-  my $sa = &set_sa();
-  sigaction( SIGALRM, $sa->{ 'a' }, $sa->{ 'o' } );
+  my $rv;
   
+  local $@;
+  local $SIG{__DIE__} = sub {
+    my $msg = "$_[0]";
+    
+    AE::log alert => "__DIE__ says @_";
+    
+    $rv = 1;
+
+    if ( $_[0] =~ /^::timeout::/o ) {
+      # write an error message to log file
+      if ( $stderr ne '&1' ) {
+        &_write_msg_file
+          ( 
+            $stderr,
+            "killed because of execution timeout ($timeout)"
+          )
+        ;
+      }
+    } else {
+      &_write_msg_file( $stderr, "$@" );
+    }
+    
+    return $rv;
+  };    
+  
+  my $sa = &set_sa();
+
+  sigaction( SIGALRM, $sa->{ 'a' }, $sa->{ 'o' } );
+
   eval {
     eval {
       alarm $timeout;
@@ -225,29 +279,11 @@ sub exec_cmd_logged_safe(%) {
   
   sigaction( SIGALRM, $sa->{ 'o' } );
   
-  if ( $@ ) {
-    $rv = 1;
-
-    if ( $@ =~ /^::timeout::/o ) {
-      # write an error message to log file
-      if ( $stderr ne '&1' ) {
-        &_write_msg_file
-          ( 
-            $stderr,
-            "killed because of execution timeout ($timeout)"
-          )
-        ;
-      }
-    } else {
-      &_write_msg_file( $stderr, "$@" );
-    }
-  }
-  
   AE::log trace => "$do 1>$stdout 2>$stderr %s [%d]",
     ( $rv ) ? 'failed' : 'completed successfully',
     $rv
   ;
-
+  
   return $rv == 0;  
 }
 
@@ -316,6 +352,67 @@ sub _write_msg_file($$) {
   
   return;
 }
+
+
+=item B<set_euid>( $euid, $chroot_dir ) 
+
+Sets an effective user id I<$euid>. This works only under
+I<superuser> account. The type of I<$euid> is a number.
+
+Returns true on success.
+
+=cut
+
+
+sub set_euid($$) {
+  my ( $ename, $chroot_dir ) = @_;
+  
+  $< == 0 or return 0;
+  
+  # remember $euid
+  my ( $name, undef, $euid ) = getpwnam( $ename );  
+  
+  if ( $> != 0 ) {
+    $> = 0;
+
+    if ( $! )  {
+      AE::log error => "set_euid failed take back root privs: %s", $!;
+      return 0;
+    }
+    
+  } else {
+    # chroot
+    chroot( $chroot_dir ) or do {
+      AE::log error => "set_euid chroot( %s ): %s",
+        $chroot_dir,
+        $!
+      ;
+      return 0;
+    };
+    
+    # chdir to root directory
+    chdir( '/' )
+      or AE::log error => "set_euid chdir( / ): %s", $!;
+  }
+  
+  # seteuid
+  
+  $> = $euid;
+
+  if ( $! ) {
+    AE::log error => "set_euid NAME = %s, EUID = %d: %s",
+      $ename,
+      $euid || 'NaN',
+      $!
+    ;
+    return 0;
+  } else {
+    AE::log debug => "effective uid = %d", $>;
+    return 1;
+  }
+
+}
+
 
 =back
 

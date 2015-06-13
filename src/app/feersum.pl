@@ -38,11 +38,13 @@ my @HEADER_PLAIN =
 );
 
 # www dir with index.html (standalone mode)
-my $WWW_DIR = $ENV{ join( '_', uc( $PROGRAM_NAME ), 'WWW_DIR' ) };
+my $WWW_DIR = get_setting( 'WWW_DIR' );
 
 # set DB home for UnQLite module
-my $BASE_DIR = $ENV{ join( '_', uc( $PROGRAM_NAME ), 'BASEDIR' ) };
+my $BASE_DIR = get_setting( 'BASEDIR' );
 &Local::DB::UnQLite::set_db_home( $BASE_DIR );
+
+my $IS_SECURE = get_setting( 'SECURE' );
 
 
 =head1 FUNCTIONS
@@ -359,6 +361,8 @@ sub run_app($$) {
           'command' => $cmd,
           'stdout' => $out_log,
           'stderr' => $err_log,
+          'euid' => $IS_SECURE ? &get_setting( 'EUID' ) : '',
+          'chroot' => $IS_SECURE ? &get_setting( 'CHROOT' ) : '',
           sub {
             my ( $rv ) = @_;
 

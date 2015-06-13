@@ -50,6 +50,9 @@ my %DEFAULT_SETTINGS =
   'MAXLOAD'   => 1, # max. number of queued queries per worker process
   'EUID'      => 'nobody',
   'WWW_DIR'   => '../www',
+  'BASEDIR'   => '.',
+  'CHROOT'    => '',
+  'SECURE'    => 1,
 );
 
 
@@ -88,7 +91,7 @@ my %DEFAULT_SETTINGS =
   
   {
     no strict 'refs';
-    *{'Feersum::DIED'} = sub {
+    *{ 'Feersum::DIED' } = sub {
       AE::log fatal => "@_";
     };
   }
@@ -111,8 +114,8 @@ Creates pool of worker processes.
   my %queue;
 
   sub create_pool() {
-    my $max_proc = $CURRENT_SETTINGS{ 'MAXPROC' };
-    my $max_load = $CURRENT_SETTINGS{ 'MAXLOAD '};
+    my $max_proc = &get_setting( 'MAXPROC' );
+    my $max_load = &get_setting( 'MAXLOAD' );
   
     $pool = $PREFORK->require( "Local::Run" )->AnyEvent::Fork::Pool::run
       (
@@ -496,7 +499,7 @@ sub create_socket($$) {
     ;
   };
   
-  listen( $socket, $CURRENT_SETTINGS{ 'SOMAXCONN' } ) or do {
+  listen( $socket, &get_setting( 'SOMAXCONN' ) ) or do {
     AE::log fatal => "Could not listen %s:%d: %s",
       $addr,
       $port,
@@ -566,16 +569,7 @@ Prints settings to output log.
 =cut
 
 
-sub debug_settings() {  
-  my @envopts =
-  (
-    join( '_', uc( $PROGRAM_NAME ), 'BASEDIR' ),
-  );
-  
-  # print ENV values
-  AE::log debug => "%s = %s", $_, $ENV{ $_ } || "" 
-    for ( sort @envopts );
-  
+sub debug_settings() {
   # print program settings
   AE::log debug => "%s = %s", $_, $CURRENT_SETTINGS{ $_ }
     for ( sort keys %CURRENT_SETTINGS );  
@@ -590,7 +584,7 @@ Creates a pidfile. If an error occurs stops the program.
 
 
 sub write_pidfile() {
-  my $file = $CURRENT_SETTINGS{ 'PIDFILE' } || return;
+  my $file = &get_setting( 'PIDFILE' ) || return;
 
   open( my $fh, ">", $file )
     or AE::log fatal => "open pidfile %s: %s", $file, $!;
@@ -609,7 +603,7 @@ Removes a pidfile from a disk.
 
 
 sub unlink_pidfile() {
-  my $file = $CURRENT_SETTINGS{ 'PIDFILE' } || return;
+  my $file = &get_setting( 'PIDFILE' ) || return;
   unlink( $file )
     or AE::log error => "unlink pidfile %s: %s", $file, $!;
 }
@@ -630,7 +624,7 @@ If an error occurs stops the program.
 sub drop_privileges(;$) {
   my ( $euser ) = @_;
   
-  $euser ||= $CURRENT_SETTINGS{ 'EUID' };
+  $euser ||= &get_setting( 'EUID' );
   
   # do nothing when is not root
   $< == 0 or return;
@@ -640,20 +634,37 @@ sub drop_privileges(;$) {
   my ( $name, undef, $euid, $egid ) = getpwnam( $euser );
   
   # update logfile permissions
-  if ( my $logfile = $CURRENT_SETTINGS{ 'LOGFILE' } ) {
+  if ( my $logfile = &get_setting( 'LOGFILE' ) ) {
     chown( $euid, $egid, $logfile )
       or AE::log fatal => "chown( %s ): %s", $logfile, $!;
   }
   
   # chroot() first
   
-  if ( $ENV{ join( '_', uc( $PROGRAM_NAME ), 'CHROOT' ) } ) {
-    my $basedir = $ENV{ join( '_', uc( $PROGRAM_NAME ), 'BASEDIR' ) };
-    chroot( $basedir )
-      or AE::log fatal => "chroot( %s ): %s", $basedir, $!;  
-    chdir( '/' )
+  if ( my $dir = &get_setting( 'CHROOT' ) ) {
+    chroot( $dir )
+      or AE::log fatal => "chroot( %s ): %s", $dir, $!;
+    my $home = '/';
+    chdir( $home )
       or AE::log fatal => "chdir( / ): %s", $!;
-    AE::log debug => "chroot'ed to \`%s\'", $basedir;
+    AE::log debug => "chroot'ed to \`%s\'", $dir;
+    
+    # update basedir, www_dir
+    delete $ENV{ join( '_', $PROGRAM_NAME, 'BASEDIR' ) };
+    $DEFAULT_SETTINGS{ 'BASEDIR' } =
+    $CURRENT_SETTINGS{ 'BASEDIR' } = $home;
+    
+    require File::Spec::Functions;
+    
+    delete $ENV{ join( '_', $PROGRAM_NAME, 'WWW_DIR' ) };
+    $DEFAULT_SETTINGS{ 'WWW_DIR' } =
+    $CURRENT_SETTINGS{ 'WWW_DIR' } = 
+      &File::Spec::Functions::catpath( '/', $home, 'www' );
+    
+    AE::log note => "new BASEDIR = \`%s\', WWW_DIR = \`%s\'",
+      &get_setting( 'BASEDIR' ),
+      &get_setting( 'WWW_DIR' )
+    ;
   }
   
   # drop privs
@@ -661,7 +672,30 @@ sub drop_privileges(;$) {
   $> = $euid;
   $! and AE::log fatal => "drop_privileges [seteuid(%s)]: %s", $euid, $!;
   AE::log note => "Effective UID = %s (%d)", $name, $>;
+  
+  $DEFAULT_SETTINGS{ 'SECURE' } =
+  $CURRENT_SETTINGS{ 'SECURE' } = 1;
 }
+
+
+=item $value = B<get_setting>( $name )
+
+Returns a current settings value by a name $name.
+
+=cut
+
+
+sub get_setting($) {
+  my ( $name ) = @_;
+  
+  if ( exists $CURRENT_SETTINGS{ $name } ) {
+    return $CURRENT_SETTINGS{ $name };
+  } else {
+    return;
+  }
+
+}
+
 
 
 =back
