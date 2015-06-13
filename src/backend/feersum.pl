@@ -133,21 +133,51 @@ Creates pool of worker processes.
     return;
   }
 
+
+=item B<destroy_pool>()
+
+Destroy a pool of worker processes.
+
+=cut
+
+
+  sub destroy_pool() {
+    undef $pool;
+  }
+
   
-=item B<run>( $cmd, @args, $cb->( $rv, $out ) )
+=item B<run>( command => $cmd, [ %args ], $cb->( $rv ) )
 
-Executes a program $cmd with arguments @args. A callback function 
-is called with two arguments:
+Executes a program $cmd with additinal arguments %args. A callback function
+C<<< $cb->() >>> is called with result value $rv: either 1 (ok) or 0 (error).
 
-=over 2
+You may use next arguments for a hash %args:
 
-=item *
+=over
 
-$rv is a result either 1 (ok) or 0 (error)
+=item stdout
 
-=item *
+Sets output file for stdout. If missing redirects output
+to I</dev/null>.
 
-$out is an output string containing both stdout and stderr
+=item stderr
+
+Sets error file for stderr. If missing redirects output
+to I<stdout>.
+
+=item timeout
+
+Sets a number of seconds before command will be killed
+automatically. Default is 10 seconds.
+
+=item euid
+
+Sets an effective uid before executing a command. If missing
+using a default value from program settings. See B<drop_privileges>
+function below for details.
+
+If the program is running without I<superuser> privileges does
+nothing.
 
 =back
 
@@ -171,6 +201,7 @@ $out is an output string containing both stdout and stderr
   sub _pool_destroy_cb {
     AE::log alert => "pool has been destroyed";
   }
+
 }
 
 
@@ -397,13 +428,9 @@ Creates SOCK_STREAM listener socket with next options:
 
 =over
 
-=item *
+=item SO_REUSEADDR
 
-SO_REUSEADDR
-
-=item *
-
-SO_KEEPALIVE
+=item SO_KEEPALIVE
 
 =back
 
@@ -590,10 +617,12 @@ sub unlink_pidfile() {
 
 =item B<drop_privileges>( [ $name ] )
 
-Sets effective uid and guid of process to nobody when
-the program is started under root (uid = 0). When this check
-is passed does chroot() to a program base directory. Otherwise,
+Sets an effective uid of process to I<nobody> (or $name if specified)
+when the program is started under root (uid = 0). If the check
+is passed does chroot() to a program base directory by default. Otherwise,
 does nothing.
+
+If an error occurs stops the program.
 
 =cut
 
