@@ -9,7 +9,7 @@ use AnyEvent::Log;
 use POSIX qw( :signal_h );
 
 
-our $VERSION = '1.005'; $VERSION = eval "$VERSION";
+our $VERSION = '1.006'; $VERSION = eval "$VERSION";
 
 
 =encoding utf-8
@@ -241,7 +241,8 @@ sub exec_cmd_logged_safe(%) {
   local $SIG{__DIE__} = sub {
     my $msg = "$_[0]";
     
-    if ( $msg eq '::timeout::' ) {
+    if ( $msg =~ /^::timeout::/o ) {
+      AE::log trace => $msg;
       # write an error message to log file
       $msg = "killed because of execution timeout ($timeout)";
     }
@@ -277,7 +278,7 @@ sub exec_cmd_logged_safe(%) {
     $rv
   ;
   
-  return $rv == 0;  
+  return ( $rv == 0 );
 }
 
 
@@ -360,45 +361,38 @@ Returns true on success.
 sub set_euid($$) {
   my ( $ename, $chroot_dir ) = @_;
   
-  $< == 0 or return 0;
-  
   AE::log trace => "\$< = %s, \$> = %s", $<, $>;
+
+  $> == 0 or return 1; # seteuid() already done
+  $< == 0 or return 0;
   
   # remember $euid
   my ( $name, undef, $euid ) = getpwnam( $ename );
   
-  # get back to root
-  if ( $> != 0 ) {
-    $> = 0;
-
-    if ( $! )  {
-      AE::log error => "set_euid failed take back root: %s", $!;
-      return 0;
-    }
-    
-  } else {
-    # chroot
-    chroot( $chroot_dir ) or do {
-      AE::log error => "set_euid chroot( %s ): %s",
-        $chroot_dir,
-        $!
-      ;
-      return 0;
-    };
-    
-    # chdir to root directory
-    chdir( '/' )
-      or AE::log error => "set_euid chdir( / ): %s", $!;
-  }
-  
-  $euid or do {
+  defined( $euid ) or do {
     AE::log error => "set_euid getpwnam failed: %s", $!;
     return 0;
   };
   
+  # chroot
+  chroot( $chroot_dir ) or do {
+    AE::log error => "set_euid chroot( %s ): %s",
+      $chroot_dir,
+      $!
+    ;
+    return 0;
+  };
+    
+  # chdir to root directory
+  chdir( '/' ) or do {
+    AE::log error => "set_euid chdir( / ): %s", $!;
+    return 0;
+  };
+
   # seteuid
   
   $> = $euid;
+  $< = $euid unless $!;
 
   if ( $! ) {
     AE::log error => "set_euid NAME = %s, EUID = %d: %s",
@@ -408,7 +402,7 @@ sub set_euid($$) {
     ;
     return 0;
   } else {
-    AE::log debug => "effective uid = %d", $>;
+    AE::log debug => "real uid = %d, effective uid = %d", $<, $>;
     return 1;
   }
 
