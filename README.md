@@ -41,8 +41,13 @@ The program is splitted in three major parts:
 To start the program type in console:
 
 ```
-shell> perl src/main.pl
+shell> PERL5LIB=src/modules perl src/main.pl
 ```
+
+The <code>PERL5LIB</code> environment variable is required and 
+says Perl where is the additional modules are placed. So, 
+you have not to copy (install) modules by a hand to start 
+a program.
 
 By default the server is listening on the address <code>127.0.0.1:28990</code>.
 To run the listener on all interfaces and addresses you have to run 
@@ -52,10 +57,21 @@ the server as described below:
 shell> PERL5LIB=src/modules perl src/main.pl --listen 0.0.0.0:28990
 ```
 
-The <code>PERL5LIB</code> environment variable is required and 
-says Perl where is the additional modules are placed. So, 
-you have not to copy (install) modules by a hand to start 
-a program.
+
+## Running with chroot ##
+
+An example to run static binary of <code>plwrd</code> program to 
+chroot to <code>/home/tvv/dev/perl/plwrd/misc/bin</code> directory,
+drops privileges to user <code>nobody</code> and using a log file
+<code>/home/tvv/dev/perl/plwrd/misc/bin/plwrd.log</code>.
+
+```
+shell> sudo -i /path/to/plwrd --euid nobody \
+-C /home/tvv/dev/perl/plwrd/misc/bin \
+-L /home/tvv/dev/perl/plwrd/misc/bin/plwrd.log
+
+```
+
 
 # Options #
 
@@ -104,6 +120,7 @@ Miscellaneous options:
   --app [-a] arg           application name (default: feersum)             
 
 ```
+
 
 # Usage with nginx #
 

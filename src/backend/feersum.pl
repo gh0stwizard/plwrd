@@ -676,6 +676,8 @@ sub drop_privileges(;$) {
   $! and AE::log fatal => "drop_privileges [seteuid(%s)]: %s", $euid, $!;
   AE::log note => "Effective UID = %s (%d)", $name, $>;
   
+  # useful for app/feersum.pl
+  
   $DEFAULT_SETTINGS{ 'SECURE' } =
   $CURRENT_SETTINGS{ 'SECURE' } = 1;
 }
