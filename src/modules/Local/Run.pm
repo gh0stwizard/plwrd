@@ -9,7 +9,7 @@ use AnyEvent::Log;
 use POSIX qw( :signal_h );
 
 
-our $VERSION = '1.004'; $VERSION = eval "$VERSION";
+our $VERSION = '1.005'; $VERSION = eval "$VERSION";
 
 
 =encoding utf-8
@@ -233,7 +233,7 @@ sub exec_cmd_logged_safe(%) {
   my $prog = &get_cmd_path( $do );
 
   my $stdout = $setup{ 'stdout' } || '/dev/null';
-  my $stderr = $setup{ 'stderr' } || '&1';
+  my $stderr = $setup{ 'stderr' } || '/dev/null';
   my $timeout = $setup{ 'timeout' } || 10;
   my $rv;
   
@@ -241,28 +241,18 @@ sub exec_cmd_logged_safe(%) {
   local $SIG{__DIE__} = sub {
     my $msg = "$_[0]";
     
-    AE::log alert => "__DIE__ says @_";
-    
-    $rv = 1;
-
-    if ( $_[0] eq '::timeout::' ) {
+    if ( $msg eq '::timeout::' ) {
       # write an error message to log file
-      if ( $stderr ne '&1' ) {
-        &_write_msg_file
-          ( 
-            $stderr,
-            "killed because of execution timeout ($timeout)"
-          )
-        ;
-      }
-    } else {
-      &_write_msg_file( $stderr, "$@" );
+      $msg = "killed because of execution timeout ($timeout)";
     }
+
+    # write error message to logfile
+    &_write_msg_file( $stderr, $msg );
     
     # remove SIGDIE handler
     $SIG{__DIE__} = undef;
-    
-    return $rv;
+    # an command execution has failed
+    $rv = 1;
   };    
   
   my $sa = &set_sa();
