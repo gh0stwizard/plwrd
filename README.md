@@ -143,12 +143,12 @@ is a number with an error code.
 
 Currently, the server is using next error codes:
 
-* <code>0</code>: Connection error
-* <code>1</code>: Bad request
-* <code>2</code>: Not implemented
-* <code>3</code>: Internal error
-* <code>4</code>: Duplicate entry in a database
-* <code>5</code>: Not found
+* <code>0</code> - Connection error
+* <code>1</code> - Bad request
+* <code>2</code> - Not implemented
+* <code>3</code> - Internal error
+* <code>4</code> - Duplicate entry in a database
+* <code>5</code> - Not found
 
 
 ## GET requests ##
@@ -174,7 +174,8 @@ A list of actions and their descriptions:
 * Parameters: none
 * Returns: an array of hashes
 
-Each hash contains name, cmd and user attributes.
+Each hash contains <code>name</code>, <code>cmd</code> 
+and <code>user</code> attributes.
 
 If an error occurs a common error hash with the key <code>err</code>
 is returned. This note is also applied to _all_ requests.
@@ -184,7 +185,8 @@ is returned. This note is also applied to _all_ requests.
 * Parameters: name
 * Returns: a hash object
 
-On success the hash object contains name, cmd and user attributes.
+On success the hash object contains <code>name</code>, <code>cmd</code> 
+and <code>user</code> attributes.
 
 ### getLogs ###
 
@@ -193,9 +195,9 @@ On success the hash object contains name, cmd and user attributes.
 
 On success the hash object contains:
 
-* <code>name</code>: the name of requested app
-* <code>stdout</code>: a text of stdout output
-* <code>stderr</code>: a text of stderr output
+* <code>name</code> - the name of requested app
+* <code>stdout</code> - a text of stdout output
+* <code>stderr</code> - a text of stderr output
 
 Otherwise, returns a hash with an <code>err</code> attribute.
 
