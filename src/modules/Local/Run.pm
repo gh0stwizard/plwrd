@@ -245,7 +245,7 @@ sub exec_cmd_logged_safe(%) {
     
     $rv = 1;
 
-    if ( $_[0] =~ /^::timeout::/o ) {
+    if ( $_[0] eq '::timeout::' ) {
       # write an error message to log file
       if ( $stderr ne '&1' ) {
         &_write_msg_file
@@ -258,6 +258,9 @@ sub exec_cmd_logged_safe(%) {
     } else {
       &_write_msg_file( $stderr, "$@" );
     }
+    
+    # remove SIGDIE handler
+    $SIG{__DIE__} = undef;
     
     return $rv;
   };    
@@ -369,9 +372,12 @@ sub set_euid($$) {
   
   $< == 0 or return 0;
   
-  # remember $euid
-  my ( $name, undef, $euid ) = getpwnam( $ename );  
+  AE::log trace => "\$< = %s, \$> = %s", $<, $>;
   
+  # remember $euid
+  my ( $name, undef, $euid ) = getpwnam( $ename );
+  
+  # get back to root
   if ( $> != 0 ) {
     $> = 0;
 
@@ -394,6 +400,11 @@ sub set_euid($$) {
     chdir( '/' )
       or AE::log error => "set_euid chdir( / ): %s", $!;
   }
+  
+  $euid or do {
+    AE::log error => "set_euid getpwnam failed: %s", $!;
+    return 0;
+  };
   
   # seteuid
   
