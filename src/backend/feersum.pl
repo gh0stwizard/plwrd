@@ -45,8 +45,11 @@ my %DEFAULT_SETTINGS =
   'APP_NAME'  => 'app+feersum.pl',
   'SOMAXCONN' => &Socket::SOMAXCONN(),
   'PIDFILE'   => '',
+  'LOGFILE'   => '',
   'MAXPROC'   => 4, # max. number of forked processes
   'MAXLOAD'   => 1, # max. number of queued queries per worker process
+  'EUID'      => 'nobody',
+  'WWW_DIR'   => 'www',
 );
 
 
@@ -79,9 +82,16 @@ my %DEFAULT_SETTINGS =
     +"$_"         =>      AE::signal( $_, $signals{ $_ } )
   } keys %signals;
             
-  $EV::DIED = $Feersum::DIED = sub {
+  $EV::DIED = sub {
     AE::log fatal => "$@";
   };
+  
+  {
+    no strict 'refs';
+    *{'Feersum::DIED'} = sub {
+      AE::log fatal => "@_";
+    };
+  }
 }
 
 # ---------------------------------------------------------------------
@@ -174,13 +184,13 @@ Start a server process.
 
   
 sub start_server() {
-  &drop_privileges();
-
+  &update_settings();
   &enable_syslog();
   &debug_settings();
-  &update_settings();
+
+  &drop_privileges();
+
   &write_pidfile();
-  
   &create_pool();
   &start_httpd();
   
@@ -532,9 +542,7 @@ Prints settings to output log.
 sub debug_settings() {  
   my @envopts =
   (
-    join( '_', uc( $PROGRAM_NAME ), 'WWW_DIR' ),
     join( '_', uc( $PROGRAM_NAME ), 'BASEDIR' ),
-    join( '_', uc( $PROGRAM_NAME ), 'PIDFILE' ),
   );
   
   # print ENV values
@@ -580,9 +588,9 @@ sub unlink_pidfile() {
 }
 
 
-=item B<drop_privileges>()
+=item B<drop_privileges>( [ $name ] )
 
-Sets effective uid and guid of process to nobody:nobody when
+Sets effective uid and guid of process to nobody when
 the program is started under root (uid = 0). When this check
 is passed does chroot() to a program base directory. Otherwise,
 does nothing.
@@ -590,18 +598,23 @@ does nothing.
 =cut
 
 
-sub drop_privileges($) {
+sub drop_privileges(;$) {
   my ( $euser ) = @_;
   
-  $euser ||= 'nobody';
+  $euser ||= $CURRENT_SETTINGS{ 'EUID' };
   
   # do nothing when is not root
   $< == 0 or return;
   
   # remember euid, ename before chroot
   # otherwise getpwnam, getpwuid could not find out /etc/passwd
-  my $euid = getpwnam( $euser );
-  my $name = getpwuid( $euid );
+  my ( $name, undef, $euid, $egid ) = getpwnam( $euser );
+  
+  # update logfile permissions
+  if ( my $logfile = $CURRENT_SETTINGS{ 'LOGFILE' } ) {
+    chown( $euid, $egid, $logfile )
+      or AE::log fatal => "chown( %s ): %s", $logfile, $!;
+  }
   
   # chroot() first
   
@@ -618,7 +631,7 @@ sub drop_privileges($) {
   
   $> = $euid;
   $! and AE::log fatal => "drop_privileges [seteuid(%s)]: %s", $euid, $!;
-  AE::log debug => "effective uid: %s (%d)", $name, $>;
+  AE::log note => "Effective UID = %s (%d)", $name, $>;
 }
 
 

@@ -86,7 +86,7 @@ sub app {
   } elsif ( $method eq 'GET' ) {
     # GET methods are using to retrieve data from a database
     if ( my $query = $env->{ 'QUERY_STRING' } ) {
-      AE::log trace => "GET request: %s", $query;
+      AE::log debug => "GET request: %s", $query;
       
       # unescape
       $query =~ s/%([0-9A-Fa-f]{2})/chr(hex($1))/eg;
@@ -177,8 +177,8 @@ sub store_data($$$) {
   my $params = &get_params( @_ )
     or return encode_json( { 'err' => &BAD_REQUEST() } );
   
-  AE::log trace => "POST request:";
-  AE::log trace => " %s => %s", $_, $params->{ $_ } for keys %$params;
+  AE::log debug => "POST request:";
+  AE::log debug => " %s => %s", $_, $params->{ $_ } for keys %$params;
 
   my %response = ( 'err' => &NOT_IMPLEMENTED() );
   my $action = delete $params->{ 'action' } || "";

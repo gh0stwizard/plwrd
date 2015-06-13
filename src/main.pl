@@ -249,7 +249,6 @@ sub set_default_options() {
   (
     'backend'	=> 'feersum',
     'app'	=> 'feersum',
-    'www-dir'	=> &File::Spec::Functions::catdir( '..', 'www' ),
   );
   
   for my $option ( keys %defaultmap ) {
@@ -274,6 +273,8 @@ sub set_env() {
     'max-proc'	  => join( '_', $prefix, 'MAXPROC' ),
     'max-load'    => join( '_', $prefix, 'MAXLOAD' ),
     'chroot-dir'  => join( '_', $prefix, 'CHROOT' ),
+    'euid'				=> join( '_', $prefix, 'EUID' ),
+    'logfile'			=> join( '_', $prefix, 'LOGFILE' ),
   );
 
   for my $option ( keys %envmap ) {
@@ -367,7 +368,7 @@ sub print_help() {
   printf $h, "--background [-B]", "run process in background";
   printf $h, "", "- default: run in foreground (disables logging)";
   printf $h, "--www-dir [-W] arg", "www directory with index.html";
-  printf $h, "", "- default is ../www";
+  printf $h, "", "- default is www";
   printf $h, "", "- useful when the program is running standalone";
   
   print "Worker pool options:";
