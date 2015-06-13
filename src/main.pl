@@ -36,6 +36,7 @@ my $retval = GetOptions
   'www-dir|W=s',        # www directory
   'max-proc=i',         # max number of worker processes
   'max-load=i',         # max number of queued commands to workers
+  'max-idle=i',		# max number of idle worker processes
   'chroot-dir|C=s',     # chroot directory
   'euid|U=s',           # effective uid
 );
@@ -277,6 +278,7 @@ sub set_env() {
     'www-dir'     => join( '_', $prefix, 'WWW_DIR' ),
     'max-proc'	  => join( '_', $prefix, 'MAXPROC' ),
     'max-load'    => join( '_', $prefix, 'MAXLOAD' ),
+    'max-idle'    => join( '_', $prefix, 'MAXIDLE' ),
     'chroot-dir'  => join( '_', $prefix, 'CHROOT' ),
     'euid'				=> join( '_', $prefix, 'EUID' ),
     'logfile'			=> join( '_', $prefix, 'LOGFILE' ),
@@ -383,6 +385,8 @@ sub print_help() {
   printf $h, "", "- default is 4";
   printf $h, "--max-load arg", "max number of queued commands per worker";
   printf $h, "", "- default is 1";
+  printf $h, "--max-idle arg", "max number of idle worker processes";
+  printf $h, "", "- default is 4";
   
   print "Security options:";
   
@@ -496,6 +500,11 @@ execute next command. This behaviour may be cause
 of freezes, delays and so on. In that case try
 to increase a number of worker processes by a 
 --B<max-proc> option if possible.
+
+=item --B<max-idle> = I<number>
+
+A number of maximum idle worker processes.
+Default is 4.
 
 =back
 

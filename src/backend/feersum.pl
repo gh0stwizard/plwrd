@@ -48,6 +48,7 @@ my %DEFAULT_SETTINGS =
   'LOGFILE'   => '',
   'MAXPROC'   => 4, # max. number of forked processes
   'MAXLOAD'   => 1, # max. number of queued queries per worker process
+  'MAXIDLE'   => 4, # max. number of idle workers
   'EUID'      => 'nobody',
   'WWW_DIR'   => '../www',
   'BASEDIR'   => '.',
@@ -116,12 +117,14 @@ Creates pool of worker processes.
   sub create_pool() {
     my $max_proc = &get_setting( 'MAXPROC' );
     my $max_load = &get_setting( 'MAXLOAD' );
+    my $max_idle = &get_setting( 'MAXIDLE' )
+                || ( int( $max_proc / 2 ) || 1 );
   
     $pool = $PREFORK->require( "Local::Run" )->AnyEvent::Fork::Pool::run
       (
         "Local::Run::execute_logged_safe",
         max   => ( scalar AnyEvent::Fork::Pool::ncpu( $max_proc ) ),
-        idle  => int( $max_proc / 2 ) || 1,
+        idle  => $max_idle,
         load  => $max_load,
         start => 0.1,
         stop  => 10,
