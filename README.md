@@ -70,9 +70,9 @@ Allowed options:
 Web server options:
   --listen [-l] arg        IP:PORT for listener                            
                            - default: "127.0.0.1:28990"                    
-  --background [-B]        run process in background                       
-                           - default: run in foreground (disables logging) 
-  --www-dir [-W] arg       www directory with index.html                   
+  --background [-B]        run process in background (disables logging)    
+                           - default: runs in foreground                   
+  --www-dir [-W] arg       www directory with file index.html              
                            - default is ../www                             
                            - useful when the program is running standalone 
 Worker pool options:
@@ -80,13 +80,15 @@ Worker pool options:
                            - default is 4                                  
   --max-load arg           max number of queued commands per worker        
                            - default is 1                                  
+  --max-idle arg           max number of idle worker processes             
+                           - default is 4                                  
 Security options:
   --home [-H] arg          working directory after fork                    
                            - default: root directory                       
   --chroot-dir [-C] arg    chroot directory                                
                            - works only when the program is started under root
                            - you have to copy apps and libs to this directory
-  --euid arg               drop privileges to this user id                 
+  --euid [-U] arg          drop privileges to this user id                 
                            - default is nobody                             
 Logging options:
   --debug                  be verbose                                      
