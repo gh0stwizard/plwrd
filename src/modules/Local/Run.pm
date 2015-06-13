@@ -9,7 +9,7 @@ use AnyEvent::Log;
 use POSIX qw( :signal_h );
 
 
-our $VERSION = '1.003'; $VERSION = eval "$VERSION";
+our $VERSION = '1.004'; $VERSION = eval "$VERSION";
 
 
 =encoding utf-8
@@ -85,10 +85,27 @@ Calls a callback $cb when executing a program is finished.
 
 =cut
 
+
 sub execute_logged(@) {
   AE::log trace => "execute_logged():\n@_";
 
   &exec_cmd_logged( @_ );
+}
+
+
+=item B<execute_logged_safe>( %setup, $cb )
+
+An interface for AnyEvent::Fork[::Pool] programs.
+See B<exec_cmd_logged_safe>() for details about a hash %setup.
+Calls a callback $cb when executing a program is finished.
+
+=cut
+
+
+sub execute_logged_safe(@) {
+  AE::log trace => "execute_logged_safe():\n@_";
+
+  &exec_cmd_logged_safe( @_ );
 }
 
 
@@ -162,9 +179,76 @@ sub exec_cmd_logged(%) {
   qx( $do 1>$stdout 2>$stderr );
   my $rv = $?;
   
-  AE::log trace => "$do 1>$stdout 2>$stderr finished: %d", $rv;
+  AE::log trace => "$do 1>$stdout 2>$stderr %s",
+    ( $rv ) ? 'failed' : 'completed successfully',
+    $rv
+  ;
 
   return $rv == 0;
+}
+
+
+=item B<exec_cmd_logged_safe>( %setup )
+
+Same as B<exec_cmd_logged>() but with an additional argument
+to setup command execution timeout.
+
+Default timeout is 10 seconds.
+
+=cut
+
+
+sub exec_cmd_logged_safe(%) {
+  my %setup = @_;
+  
+  my $do = $setup{ 'command' };
+  my $prog = &get_cmd_path( $do );
+
+  my $stdout = $setup{ 'stdout' }; # ( $^O eq 'MSWin32' ) ? 'NUL' : '/dev/null';
+  my $stderr = $setup{ 'stderr' } || '&1';
+  
+  my $rv;
+  my $timeout = $setup{ 'timeout' } || 10;
+  my $sa = &set_sa();
+  sigaction( SIGALRM, $sa->{ 'a' }, $sa->{ 'o' } );
+  
+  eval {
+    eval {
+      alarm $timeout;
+      qx( $do 1>$stdout 2>$stderr );
+      $rv = $?;
+    };
+    
+    alarm 0;
+    die $@ if $@;
+  };
+  
+  sigaction( SIGALRM, $sa->{ 'o' } );
+  
+  if ( $@ ) {
+    $rv = 1;
+
+    if ( $@ =~ /^::timeout::/o ) {
+      # write an error message to log file
+      if ( $stderr ne '&1' ) {
+        &_write_msg_file
+          ( 
+            $stderr,
+            "killed because of execution timeout ($timeout)"
+          )
+        ;
+      }
+    } else {
+      &_write_msg_file( $stderr, "$@" );
+    }
+  }
+  
+  AE::log trace => "$do 1>$stdout 2>$stderr %s [%d]",
+    ( $rv ) ? 'failed' : 'completed successfully',
+    $rv
+  ;
+
+  return $rv == 0;  
 }
 
 
@@ -200,7 +284,7 @@ The hash reference contains next keys:
  o: an old action
  
 When a signal SIGALRM approaches a new action calls
-subroutine C<<< die "timeout\n" >>>.
+subroutine C<<< die "::timeout::" >>>.
 
 =cut
 
@@ -212,13 +296,26 @@ sub set_sa() {
   $settings{ 'm' } = POSIX::SigSet->new( SIGALRM );
   $settings{ 'a' } = POSIX::SigAction->new
   (
-    sub { die "timeout\n"; }, $settings{ 'm' }
+    sub { die "::timeout::"; }, $settings{ 'm' }
   );
   $settings{ 'o' } = POSIX::SigAction->new();
 
   return \%settings;
 }
 
+
+sub _write_msg_file($$) {
+  my ( $file, $msg ) = @_;
+  
+  if ( open( my $fh, '>>', $file ) ) {
+    syswrite $fh, "$msg";
+    close $fh;
+  } else {
+    AE::log error => "open %s: %s", $file, $!;
+  }
+  
+  return;
+}
 
 =back
 

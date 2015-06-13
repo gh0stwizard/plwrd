@@ -106,7 +106,7 @@ Creates pool of worker processes.
   
     $pool = $PREFORK->require( "Local::Run" )->AnyEvent::Fork::Pool::run
       (
-        "Local::Run::execute_logged",
+        "Local::Run::execute_logged_safe",
         max   => ( scalar AnyEvent::Fork::Pool::ncpu( $max_proc ) ),
         idle  => int( $max_proc / 2 ) || 1,
         load  => $max_load,
