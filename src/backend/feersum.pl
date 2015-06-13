@@ -49,7 +49,7 @@ my %DEFAULT_SETTINGS =
   'MAXPROC'   => 4, # max. number of forked processes
   'MAXLOAD'   => 1, # max. number of queued queries per worker process
   'EUID'      => 'nobody',
-  'WWW_DIR'   => 'www',
+  'WWW_DIR'   => '../www',
 );
 
 
