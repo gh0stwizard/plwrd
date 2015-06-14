@@ -19,6 +19,7 @@ via CPAN or other Perl package management system:
 * Feersum
 * HTTP::Body
 * HTML::Entities
+* MIME::Type::FileName
 * JSON::XS
 * File::Spec
 * Getopt::Long
