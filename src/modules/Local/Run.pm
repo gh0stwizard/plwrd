@@ -364,7 +364,7 @@ sub set_euid($$) {
   AE::log trace => "\$< = %s, \$> = %s", $<, $>;
 
   $> == 0 or return 1; # seteuid() already done
-  $< == 0 or return 0;
+  $< == 0 or return 0; # real uid is not root
   
   # remember $euid
   my ( $name, undef, $euid ) = getpwnam( $ename );
@@ -389,7 +389,7 @@ sub set_euid($$) {
     return 0;
   };
 
-  # seteuid
+  # seteuid && setreuid
   
   $> = $euid;
   $< = $euid unless $!;

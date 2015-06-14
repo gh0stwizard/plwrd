@@ -30,7 +30,6 @@ $(function() {
     tbody = $( "table tbody" ),
     name = $( "#addAppForm #name" ),
     nameRegex = /^[a-z]([0-9a-z_\s])+$/i,
-    user = $( "#addAppForm #user" ),
     cmd = $( "#addAppForm #cmd" ),
     tips = $( ".validateTips" );
     
@@ -158,7 +157,6 @@ $(function() {
     valid = valid && checkLength( name, "name", 2, 16 );
     valid = valid && checkRegexp( name, nameRegex,
       "Username may consist of a-z, 0-9, underscores, spaces and must begin with a letter." );
-    valid = valid && checkLength( user, "user", 1, 16 );
     valid = valid && checkLength( cmd, "command", 1, 256 );
         
     if ( valid ) {
@@ -172,7 +170,7 @@ $(function() {
       } )
       .done( function ( data, textStatus, jqXHR ) {
         if ( data.name ) {
-          addEntryIntoTable( name, user, cmd );
+          addEntryIntoTable( name, cmd );
           dialog.dialog( "close" );
         } else {
           showMessage( $title_error, $errors[ data.err ] );
@@ -186,9 +184,8 @@ $(function() {
     return valid;
   }
   
-  function addEntryIntoTable( n, u, c ) {
+  function addEntryIntoTable( n, c ) {
     var row = '<tr><td>' + n.val()
-      + '</td><td>' + u.val()
       + '</td><td>' + c.val()
       + '</td><td id="runApp">' + $icon_play + '</td></tr>',
     $row = $( row ),
@@ -214,10 +211,8 @@ $(function() {
     var valid = true;
 
     $( '#editAppForm :input' ).removeClass( "ui-state-error" );
-    var u = $( '#editAppForm #user' ),
-        c = $( '#editAppForm #cmd' );
+    var c = $( '#editAppForm #cmd' );
 
-    valid = valid && checkLength( u, "user", 1, 16 );
     valid = valid && checkLength( c, "command", 1, 256 );
 
     if ( valid ) {
@@ -232,7 +227,7 @@ $(function() {
       .done( function ( data, textStatus, jqXHR ) {
         if ( data.name ) {
           // TODO
-          //editEntryTable( n, u, c );
+          //editEntryTable( n, c );
           loadEntries();
           editor.dialog( "close" );
         } else {
@@ -432,7 +427,6 @@ $(function() {
         $( '#editAppForm #name' ).val( data.name );
         $( '#editAppForm #name-ui' ).val( data.name );
         $( '#editAppForm #cmd' ).val( data.cmd );
-        $( '#editAppForm #user' ).val( data.user );
         editor.dialog( 'open' );
       } else {
         showMessage( $title_error, $errors[ data.err ] );
@@ -473,7 +467,6 @@ $(function() {
       for (var i = 0; i < entries; i++) {
         var entry = data[ i ],
         row = '<tr><td>'  + entry.name 
-            + '</td><td>' + entry.user
             + '</td><td>' + entry.cmd  
             + '</td><td id="runApp">' + $icon_play + '</td></tr>',
         $row = $( row );
@@ -731,9 +724,6 @@ $(function() {
       <label for="name">Name</label>
       <input type="text" name="name" id="name" value="ls" 
             class="text ui-widget-content ui-corner-all">
-      <label for="user">User</label>
-      <input type="text" name="user" id="user" value="nobody"
-            class="text ui-widget-content ui-corner-all">
       <label for="cmd">Command</label>
       <input type="text" name="cmd" id="cmd" value="/bin/ls"
             class="text ui-widget-content ui-corner-all">
@@ -750,9 +740,6 @@ $(function() {
       <label for="name">Name</label>
       <input type="text" name="name-ui" id="name-ui"
             class="text ui-widget-content ui-corner-all" disabled>
-      <label for="user">User</label>
-      <input type="text" name="user" id="user"
-            class="text ui-widget-content ui-corner-all">
       <label for="cmd">Command</label>
       <input type="text" name="cmd" id="cmd"
             class="text ui-widget-content ui-corner-all">
@@ -766,26 +753,16 @@ $(function() {
 <button id="wipe-apps">Wipe</button>
 
 <table class="tablesorter">
-  <colgroup><col><col><col><col width="1%"></colgroup>
+  <colgroup><col width="25%"><col width="74%"><col width="1%"></colgroup>
   <thead>
     <tr>
       <th>Name</th>
-      <th>User</th>
       <th>Application</th>
       <th><!-- micro buttons //--></th>
     </tr>
   </thead>
   <!-- data placeholder //-->
-  <tbody>
-  <!--
-    <tr>
-      <td>test</td>
-      <td>admin</td>
-      <td>dont delete</td>
-      <td>&nbsp;</td>
-    </tr>
-  //-->
-  </tbody>
+  <tbody><!-- rows //--></tbody>
 </table>
 
 <!-- dialog window with error, notification messages //-->
