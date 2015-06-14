@@ -9,12 +9,117 @@
   <meta charset="utf-8">
   <title>plwrd &part; Application Manager &forall;</title>
   <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon">
-  <link rel="stylesheet" href="/css/plwrd.css" type="text/css">
-  <!-- script type="text/javascript" src="js/detectMobile.js"></script //-->
   <script type="text/javascript" src="js/jxs.js"></script>
   <script type="text/javascript" src="js/knockout-3.3.0.js"></script>
-  <script type="text/javascript" src="js/plwrd-ko.js"></script>
+  <script type="text/javascript" src="ko-table/knockout-table.js"></script>
 </head>
+<style type="text/css">
+
+/* 
+ * http://www.smashingmagazine.com/2008/08/13/top-10-css-table-designs/
+ */
+
+#one-column-emphasis {
+	font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+	font-size: 1.0em;
+	margin-top: 45px;
+	width: 100%;
+  max-width: 800px;
+	text-align: left;
+	border-collapse: collapse;
+}
+#one-column-emphasis th {
+	font-size: 1.2em;
+	font-weight: normal;
+	padding: 12px 15px;
+	color: #039;
+}
+#one-column-emphasis td {
+	padding: 10px 15px;
+	color: #669;
+	border-top: 1px solid #e8edff;
+}
+#one-column-emphasis tr:hover td {
+	color: #339;
+	background: #eff2ff;
+}
+
+
+</style>
 <body>
+<div align="center">
+  <table id="one-column-emphasis" data-bind="table: {
+    columns: columns, 
+    data: data,
+    header: 'heading',
+    dataItem: 'datavalue'
+  }, click: myFn"></table>
+</div>
 </body>
+<script>
+var ra = window.location.protocol + '//' + window.location.host + '/plwrd?';
+  
+function error( status ) { /* jx error handler */
+  alert( 'Server error: ' + status );
+}
+
+  
+/*
+ * knockout view models
+ */
+
+function sortByName( a, b ) {
+  return ( a.name == b.name ) ? 0 : ( a.name < b.name ? -1 : 1 );
+}
+
+function findAppName( el ) {
+  var e = el;
+  var steps = 5;
+  var n;
+
+  for ( var i = 0; i < steps; i++ ) {
+    var t = e.parentNode;
+
+    if ( t.nodeName == 'TR' ) {
+      n = t.children[0].innerText;
+      break;
+    } else {
+      e = t;
+    }
+  }
+
+  return n;
+}
+
+
+function AppViewModel() {
+  var self = this;
+
+  self.columns = [
+    { heading: 'Name', datavalue: 'name' },
+    { heading: 'Application', datavalue: 'cmd' }
+  ];
+  self.data = ko.observableArray();
+  
+  self.myFn = function ( data, event ) {
+    event = event || window.event;
+    var e = event.target || event.srcElement;
+    var n = findAppName( e );
+
+    console.log( n );
+    
+    // TODO
+    // rest things...
+  };
+  
+  ko.computed( function() {
+    jx.load( ra + 'action=listApps', function( json ) {
+      self.data( json );
+      self.data.sort( sortByName );
+    }, 'json', 'get' );    
+  }, self );
+};
+
+ko.applyBindings( new AppViewModel() );
+</script>
 </html>

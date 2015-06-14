@@ -82,7 +82,8 @@ ko.bindingHandlers.table = {
                 }));
                 itemValue = itemValue.peek ? itemValue.peek() : ko.ignoreDependencies(itemValue);
             }
-            return itemValue == null ? '' : ko.utils.escape(itemValue);
+            return itemValue == null ? '' : // ko.utils.escape(itemValue);
+                    itemValue;
         }
 
         // Ensure the class won't corrupt the HTML
