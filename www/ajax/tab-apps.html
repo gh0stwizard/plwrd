@@ -513,16 +513,21 @@ $(function() {
   function showLogsWindow( name, stdout, stderr ) {
     var selector = '#log-window';
     
-    var accordion = $( '<div id="accordion"></div>' );
-    accordion.append( '<h3>Output</h3><div><pre style="padding: 0; margin: 0">'
-                      + stdout + '</pre></div>' );
-    accordion.append( '<h3>Errors</h3><div><pre style="padding: 0; margin: 0">'
-                      + stderr + '</pre></div>' );
+    var $accordion = $( '<div id="accordion"></div>' );
+    
+    var $out = $( '<h3>Output</h3><div><pre style="padding: 0; margin: 0">'
+                + stdout
+                + '</pre></div>' );
+    var $err = $( '<h3>Errors</h3><div><pre style="padding: 0; margin: 0">'
+                + stderr
+                + '</pre></div>' );
+    $accordion.append( $out );
+    $accordion.append( $err );    
   
-    var log = $( selector ).dialog( {
+    $( selector ).dialog( {
       dialogClass: "no-close",
       modal : true,
-      autoOpen : false,
+      autoOpen : true,
       title : 'Logs of `' + name + "'",
       width : 800,
       height : 600,
@@ -532,20 +537,20 @@ $(function() {
         }
       },
       close : function() {
+        $( '#accordion' ).remove();
         $( selector ).empty();
       },
       resize : function ( event, ui ) {
         $( '#accordion' ).accordion( "refresh" );
       },
       open : function ( event, ui ) {
+        $( selector ).append( $accordion );
         $( '#accordion' ).accordion( { 
           collapsible: true,
           heightStyle: "fill"
         } );       
       }
     } );
-  
-    log.append( accordion ).dialog( 'open' );
   }
 
   
