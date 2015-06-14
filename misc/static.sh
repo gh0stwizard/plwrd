@@ -57,7 +57,7 @@ ${SP_FILE} mkapp ${BIN_DIR}/$APPNAME --boot ${BOOT_FILE} \
 -MAnyEvent::Fork \
 -MAnyEvent::Fork::RPC \
 -MAnyEvent::Fork::Pool \
--MData::Dumper \
+-MHTML::Entities \
 --strip ${STRIP} \
 --${LINKTYPE} \
 --usepacklists \

@@ -20,6 +20,7 @@ use JSON::XS qw( encode_json decode_json );
 use Local::DB::UnQLite;
 use Scalar::Util ();
 use File::Spec::Functions qw( catfile );
+use HTML::Entities ();
 use vars qw( $PROGRAM_NAME );
 
 
@@ -272,20 +273,13 @@ sub retrieve_data(@) {
     $err_log =~ s/\s+//eg;
     $out_log =~ s/\s+//eg;
     
-    my $stdout = &read_file( $out_log );
-    my $stderr = &read_file( $err_log );
-    
-    if ( defined( $stdout ) or defined( $stderr ) ) {
-      %response = 
-        (
-          'name' => $kv,
-          'stdout' => $stdout,
-          'stderr' => $stderr,
-        )
-      ;
-    } else {
-      %response = ( 'err' => &EINT_ERROR() );
-    }
+    %response =
+      (
+        'name' => $kv,
+        'stdout' => &HTML::Entities::encode( &read_file( $out_log ) ),
+        'stderr' => &HTML::Entities::encode( &read_file( $err_log ) ),
+      )
+    ;
   }
   
   return encode_json( \%response );
@@ -304,15 +298,10 @@ sub read_file($) {
   
   open( my $fh, '<:raw', $file ) or do {
     AE::log error => "open $file: $!";
-    return;
+    return '';
   };
   
-  my $data = '';
-  
-  {
-    local $/;
-    $data = scalar <$fh>;
-  }
+  my $data = do { local $/; scalar <$fh> };
   
   close( $fh )
     or AE::log error => "close $file: $!";
