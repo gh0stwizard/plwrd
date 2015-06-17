@@ -9,9 +9,8 @@
   <meta charset="utf-8">
   <title>plwrd &part; Application Manager &forall;</title>
   <link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon">
-  <script type="text/javascript" src="js/jxs.js"></script>
-  <script type="text/javascript" src="js/knockout-3.3.0.js"></script>
-  <script type="text/javascript" src="ko-table/knockout-table.js"></script>
+  <script type="text/javascript" src="/js/knockout-3.3.0.js"></script>
+  <script type="text/javascript" src="/js/zepto.min.js"></script>
 </head>
 <style type="text/css">
 
@@ -38,6 +37,7 @@
 	padding: 10px 15px;
 	color: #669;
 	border-top: 1px solid #e8edff;
+	cursor: default;
 }
 #one-column-emphasis tr:hover td {
 	color: #339;
@@ -47,79 +47,58 @@
 
 </style>
 <body>
-<div align="center">
-  <table id="one-column-emphasis" data-bind="table: {
-    columns: columns, 
-    data: data,
-    header: 'heading',
-    dataItem: 'datavalue'
-  }, click: myFn"></table>
-</div>
+    <table id="one-column-emphasis" data-bind="with: chosenListAppsData" align="center">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Command</th>
+        </tr>
+      </thead>
+      <tbody data-bind="foreach: $data">
+        <tr data-bind="click: $root.goToApp">
+          <td data-bind="text: name"></td>
+          <td data-bind="text: cmd"></td>
+        </tr>
+      </tbody>
+    </table>
+
+  <div class="viewApp" data-bind="with: chosenAppData">
+    <div class="appInfo">
+      <p><label>Name</label>: <span data-bind="text: name"></span></p>
+      <p><label>Command</label>: <span data-bind="text: name"></span></p>
+    </div>
+  </div>
 </body>
 <script>
-var ra = window.location.protocol + '//' + window.location.host + '/plwrd?';
+  var ra = window.location.protocol + '//' + window.location.host + '/plwrd?';
   
-function error( status ) { /* jx error handler */
-  alert( 'Server error: ' + status );
-}
-
-  
-/*
- * knockout view models
- */
-
-function sortByName( a, b ) {
-  return ( a.name == b.name ) ? 0 : ( a.name < b.name ? -1 : 1 );
-}
-
-function findAppName( el ) {
-  var e = el;
-  var steps = 5;
-  var n;
-
-  for ( var i = 0; i < steps; i++ ) {
-    var t = e.parentNode;
-
-    if ( t.nodeName == 'TR' ) {
-      n = t.children[0].innerText;
-      break;
-    } else {
-      e = t;
-    }
+  function sortByName( a, b ) {
+    return ( a.name == b.name ) ? 0 : ( a.name < b.name ? -1 : 1 );
   }
 
-  return n;
-}
-
-
-function AppViewModel() {
-  var self = this;
-
-  self.columns = [
-    { heading: 'Name', datavalue: 'name' },
-    { heading: 'Application', datavalue: 'cmd' }
-  ];
-  self.data = ko.observableArray();
+  function AppViewModel() {
+    var self = this;
   
-  self.myFn = function ( data, event ) {
-    event = event || window.event;
-    var e = event.target || event.srcElement;
-    var n = findAppName( e );
+    // Data
 
-    console.log( n );
-    
-    // TODO
-    // rest things...
-  };
+    self.chosenListAppsData = ko.observableArray();
+    self.chosenAppData = ko.observable();
   
-  ko.computed( function() {
-    jx.load( ra + 'action=listApps', function( json ) {
-      self.data( json );
-      self.data.sort( sortByName );
-    }, 'json', 'get' );    
-  }, self );
-};
+    // Behaviours
+  
+    self.goToApp = function ( app ) {
+      self.chosenListAppsData( null );
+      $.get( ra + 'action=getApp&name=' + app.name, self.chosenAppData );
+    };
+  
+    ko.computed( function () {
+      $.getJSON( ra + 'action=listApps', function( data, status, xhr ) {
+        self.chosenListAppsData( data );
+        self.chosenListAppsData.sort( sortByName );
+      } );
+    }, self );
+  }
 
-ko.applyBindings( new AppViewModel() );
+  ko.applyBindings( new AppViewModel() );
 </script>
 </html>
