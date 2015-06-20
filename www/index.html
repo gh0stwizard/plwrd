@@ -25,7 +25,7 @@
 #one-column-emphasis {
   font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
   font-size: 1.0em;
-  margin-top: 45px;
+  margin-top: 24px;
   width: 100%;
   max-width: 1024px;
   text-align: left;
@@ -48,16 +48,41 @@
 	background: #eff2ff;
 }
 
+/*
+ * http://css3buttongenerator.com/
+ */
+
+.btn {
+  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+  color: #ffffff;
+  font-size: 0.85em;
+  background: #16167a;
+  padding: 7px 20px 7px 20px;
+  text-decoration: none;
+  border: 0;
+}
+
+.btn:hover {
+  background: #000290;
+}
+
+
+/* prevent color changing for links */
+
 #one-column-emphasis tr td a, 
 #one-column-emphasis tr td a:visited {
   color: blue;
 }
 
+/* error message style */
 .errorBox p {
   text-align: center;
   font-size: 1.4em;
   font-weight: bolder;
 }
+
+
+/* table for application info */
 
 #AppTable {
   font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
@@ -79,6 +104,10 @@
   padding: 10px 15px;
   color: #669;
   border-bottom: 1px solid #e8edff;	
+}
+
+#AppTable td.editable {
+  padding: 0 15px;
 }
 
 #AppTable td input {
@@ -103,19 +132,8 @@
   border-bottom: 1px solid #e8edff;
 }
 
-.btn {
-  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
-  color: #ffffff;
-  font-size: 14px;
-  background: #16167a;
-  padding: 10px 20px 10px 20px;
-  text-decoration: none;
-  border: 0;
-}
 
-.btn:hover {
-  background: #000290;
-}
+/* table for log messages */
 
 #LogTable {
   font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
@@ -139,15 +157,37 @@
   font-size: 1.0em;
 }
 
+
 /* Output, Errors names settings */
+
 .appLog p {
   font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
   font-size: 1.0em;
   font-weight: bolder;
 }
 
+
+/* Add application styles */
+
+.AddApp {
+  left: 0;
+  right: 0;
+  width: 90%;
+  margin: 0 auto;
+  max-width: 1024px;
+}
+
+.AddApp button {
+  margin-left: 18px;
+}
+
 </style>
 <body>
+
+  <div class="AddApp" aling="center">
+      <button class="btn" data-bind="click: showApps">Applications</button>
+      <button class="btn" data-bind="click: addNewApp">Create App</button>
+  </div>
 
   <div class="listAppsTable" data-bind="with: chosenListAppsData">
     <table id="one-column-emphasis" align="center">
@@ -234,7 +274,7 @@
         </tr>
         <tr>
           <th>Command</th>
-          <td style="padding: 0 15px"><input data-bind="value: cmd" /></td>
+          <td class="editable"><input data-bind="value: cmd" /></td>
         </tr>
         <tr>
           <td class="button">&nbsp;</td>
@@ -246,10 +286,34 @@
     </table>
   </div>
 
+  <!-- Create new application form //-->
+  <div class="viewAddApp" data-bind="visible: onCreateApp">
+    <table id="AppTable" align="center">
+      <colgroup><col width="15%"><col></colgroup>
+      <tbody>
+        <tr>
+          <th>Name</th>
+          <td class="editable"><input data-bind="value: newAppName" /></td>
+        </tr>
+        <tr>
+          <th>Command</th>
+          <td class="editable"><input data-bind="value: newAppCmd" /></td>
+        </tr>
+        <tr>
+          <td class="button">&nbsp;</td>
+          <td class="button">
+            <button class="btn" data-bind="click: $root.addApp">Submit</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
 </body>
 <script>
-  var suffix = '/plwrd';
-  var ra = window.location.protocol + '//' + window.location.host + suffix + '?';
+  var suffix = '/plwrd',
+      ra = window.location.protocol + '//' + window.location.host + suffix + '?',
+      nameRegex = /^[a-z]([0-9a-z_\s])+$/i;
   
   function sortByName( a, b ) {
     return ( a.name == b.name ) ? 0 : ( a.name < b.name ? -1 : 1 );
@@ -266,6 +330,9 @@
     self.chosenAppDataEdit = ko.observable();
     self.errorMessage = ko.observable();
     self.commandStatus = ko.observable();
+    self.onCreateApp = ko.observable();
+    self.newAppName = ko.observable();
+    self.newAppCmd = ko.observable();
     self.errors = [
       'Connection error',
       'Bad request',
@@ -277,6 +344,43 @@
     
   
     // Behaviours
+
+    self.showApps = function () {
+      location.hash = '';
+    }
+
+    self.addNewApp = function () {
+      location.hash = 'create';
+    }
+
+    self.addApp = function () {
+      var name = self.newAppName(),
+          cmd = self.newAppCmd(),
+          valid = true;
+      
+      valid = valid && checkLength( name, 'Name', 2, 16 );
+      valid = valid && checkRegexp( name, nameRegex, 'Name' );
+      valid = valid && checkLength( cmd, 'Command', 1, 255 );
+
+      valid && postJSON( suffix,
+        {
+          action: 'addApp',
+          name: name,
+          cmd: cmd
+        },
+        function ( data ) {
+          if ( data.err ) {
+            self.errorMessage( self.errors[ data.err ] );
+          } else {
+            self.newAppName( null );
+            self.newAppCmd( null );
+            self.onCreateApp( null );
+            // get back to main page
+            hasher.setHash( '' );
+          }
+        }
+      );
+    }
 
     self.runApp = function ( app ) {
       location.hash = 'run' + '/' + app.name;
@@ -340,9 +444,6 @@
           cmd: app.cmd
         },
         function ( data ) {
-          // clear form
-          self.chosenAppData( null );
-
           if ( data.err ) {
             self.errorMessage( self.errors[ data.err ] );
           } else {
@@ -360,7 +461,7 @@
       var logs = self.logAppData();
 
       if ( logs ) {
-        // http://stackoverflow.com/questions/20964811/replace-amp-to-lt-to-and-gt-to-gt-in-javascript ------------------------------------------------------------------------------------------------
+        // http://stackoverflow.com/questions/20964811/replace-amp-to-lt-to-and-gt-to-gt-in-javascript
         logs['stdout'] = $( '<div/>' ).html(logs['stdout'] ).text();
         logs['stderr'] = $( '<div/>' ).html(logs['stderr'] ).text();
       }
@@ -370,8 +471,6 @@
 
     self.formattedStatus = ko.computed( function() {
       var status = self.commandStatus();
-
-      console.log( status );
 
       if ( status == null || status == undefined ) {
         return null;
@@ -389,6 +488,8 @@
       self.logAppData( null );
       self.chosenAppDataEdit( null );
       self.commandStatus( null );
+      self.onCreateApp( null );
+      self.errorMessage( null );
     }
     
     function getJSON ( url, cb ) {
@@ -429,6 +530,33 @@
       } );
     }
 
+    function checkLength( o, n, min, max ) {
+      if ( o == null || o == undefined ) {
+        o = '';
+      }
+
+      if ( o.length > max || o.length < min ) {
+        self.errorMessage( "Length of " + n + " must be between " 
+                          + min + " and " + max );
+        return false;
+      } else {
+        return true;
+      }
+    }
+    
+    function checkRegexp( o, regexp, n ) {
+      if ( o == null || o == undefined ) {
+        o = '';
+      }
+
+      if ( !( regexp.test( o ) ) ) {
+        self.errorMessage( n + " contains invalid characters" );
+        return false;
+      } else {
+        return true;
+      }
+    }
+
 
     // Router functions
     
@@ -464,10 +592,17 @@
       } );
     }
 
+    function createApp () {
+      cleanAll();
+      self.onCreateApp( true );
+    }
+
     
     // Setup routers
     
     crossroads.addRoute( '', listApps );
+    crossroads.addRoute( '/', listApps );
+    crossroads.addRoute( 'create', createApp );
     var actionsRouter = crossroads.addRoute( '{action}/{name}' );
     
     actionsRouter.matched.add( function( action, name ) {
@@ -501,6 +636,8 @@
         self.logAppData( null );
         self.chosenAppDataEdit( null );
         self.commandStatus( null );
+        self.onCreateApp( null );
+        self.errorMessage( null );
       }
       
       crossroads.parse( newHash );
