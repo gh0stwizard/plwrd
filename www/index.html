@@ -89,7 +89,7 @@
   font-size: 1.0em;
   margin-top: 45px;
   width: 100%;
-  max-width: 800px;
+  max-width: 1024px;
   text-align: left;
   border-collapse: collapse;
 }
@@ -139,7 +139,7 @@
   font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
   font-size: 1.0em;
   width: 100%;
-  max-width: 800px;
+  max-width: 1024px;
   text-align: left;
   border-collapse: collapse;
   margin-top: 24px;
@@ -149,12 +149,13 @@
 
 #LogTable td div {
   overflow-x: auto;
-  max-width: 800px;
+  max-width: 1024px;
 }
 
 #LogTable td div pre {
   font-family: "Lucida Console", Monaco, monospace;
   font-size: 1.0em;
+  padding: 0 5px;
 }
 
 
@@ -181,12 +182,23 @@
   margin-left: 18px;
 }
 
+.AddApp img.pulse {
+  height: 12px;
+  /* width: 80px; pulse.gif */
+  width: 38px;
+  margin-top: 5px;
+  margin-right: 32px;
+}
+
 </style>
 <body>
 
   <div class="AddApp" aling="center">
       <button class="btn" data-bind="click: showApps">Applications</button>
       <button class="btn" data-bind="click: addNewApp">Create App</button>
+      <!-- http://preloaders.net/en/search/pulse //-->
+      <img src="/img/pulse2.gif" class="pulse" align="right" valign="bottom"
+          data-bind="visible: onAJAX()" />
   </div>
 
   <div class="listAppsTable" data-bind="with: chosenListAppsData">
@@ -318,6 +330,17 @@
   function sortByName( a, b ) {
     return ( a.name == b.name ) ? 0 : ( a.name < b.name ? -1 : 1 );
   }
+  
+  ko.bindingHandlers.showMe = {
+    init: function ( element, valueAccessor ) {
+      var shouldDisplay = valueAccessor();
+      $( element ).toggle( shouldDisplay );
+    },
+    update: function ( element, valueAccessor ) {
+      var shouldDisplay = valueAccessor();
+      shouldDisplay ? $( element ).show() : $( element ).hide();
+    }
+  };
 
   function AppViewModel() {
     var self = this;
@@ -333,6 +356,8 @@
     self.onCreateApp = ko.observable();
     self.newAppName = ko.observable();
     self.newAppCmd = ko.observable();
+    self.onAJAX = ko.observable();
+
     self.errors = [
       'Connection error',
       'Bad request',
@@ -413,7 +438,7 @@
       );
     };
     
-    self.updateApp = function ( app ) {      
+    self.updateApp = function ( app ) {
       postJSON( suffix,
         { 
           action: 'editApp',
@@ -491,6 +516,9 @@
     }
     
     function getJSON ( url, cb ) {
+      var numr = self.onAJAX() ? self.onAJAX() : 0;
+      self.onAJAX( numr + 1 );
+
       $.ajax( {
         type: 'GET',
         url: url,
@@ -500,11 +528,18 @@
         error: function ( xhr, type, error ) {
           cleanAll();
           self.errorMessage( error );
+        },
+        complete: function () {
+          var num = self.onAJAX() ? self.onAJAX() : 1;
+          self.onAJAX( num - 1 );
         }
       } );
     }
     
     function postJSON( url, data, cb ) {
+      var numr = self.onAJAX() ? self.onAJAX() : 0;
+      self.onAJAX( numr + 1 );
+
       $.ajax( {
         type: 'POST',
         url: url,
@@ -514,6 +549,10 @@
         error: function ( xhr, type, error ) {
           cleanAll();
           self.errorMessage( error );
+        },
+        complete: function () {
+          var num = self.onAJAX() ? self.onAJAX() : 1;
+          self.onAJAX( num - 1 );
         }
       } );    
     }
