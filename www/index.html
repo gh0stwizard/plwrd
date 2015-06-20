@@ -395,24 +395,22 @@
     };
 
     self.removeApp = function ( app )  {
-      // remove from a table
-      var elements = self.chosenListAppsData.remove( app );
+      var name = app.name;
 
-      if ( elements.length > 0 ) {
-        var name = elements[0].name;
-
-        postJSON( suffix,
-          {
-            action: 'delApp',
-            name: name
-          },
-          function( data ) {
-            if ( data.err ) {
-              self.errorMessage( self.errors[ data.err ] );
-            }
+      postJSON( suffix,
+        {
+          action: 'delApp',
+          name: name
+        },
+        function( data ) {
+          if ( data.err ) {
+            self.errorMessage( self.errors[ data.err ] );
+          } else {
+            // remove from a table
+            self.chosenListAppsData.remove( app );
           }
-        );
-      }        
+        }
+      );
     };
     
     self.updateApp = function ( app ) {      
