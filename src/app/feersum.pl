@@ -21,6 +21,7 @@ use Local::DB::UnQLite;
 use Scalar::Util ();
 use File::Spec::Functions qw( catfile );
 use HTML::Entities ();
+use Encode qw( decode_utf8 );
 use vars qw( $PROGRAM_NAME );
 
 
@@ -301,11 +302,11 @@ sub read_file($) {
     return '';
   };
   
-  my $data = do { local $/; scalar <$fh> };
+  my $data = decode_utf8( do { local $/; scalar <$fh> } );
   
   close( $fh )
     or AE::log error => "close $file: $!";
-  
+    
   return $data;
 }
 
