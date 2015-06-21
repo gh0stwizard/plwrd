@@ -41,6 +41,7 @@ html, body, button {
   font-weight: normal;
   padding: 12px 15px;
   color: #039;
+  text-align: left;
 }
 #AppsTable td {
   padding: 10px 15px;
@@ -88,9 +89,8 @@ html, body, button {
 /* table for application info */
 
 #AppTable {
-  margin-top: 45px;
+  margin-top: 15px;
   width: 100%;
-  max-width: 1024px;
   text-align: left;
   border-collapse: collapse;
 }
@@ -126,7 +126,12 @@ html, body, button {
 
 /* Add application styles */
 
-.AddApp, .wipeApps, .appLog {
+.AddApp,
+.viewWipeApps,
+.appLog,
+.viewApp,
+.viewAddApp,
+.viewEditApp {
   left: 0;
   right: 0;
   width: 90%;
@@ -136,17 +141,17 @@ html, body, button {
 .AddApp button {
   margin-left: 18px;
 }
-.AddApp img.pulse {
+.AddApp img {
   height: 24px;
   width: 24px;
-  margin: 0;
-  padding: 0;
+  padding-top: 5px;
+  padding-right: 5px;
 }
 
 
 /* wipe applications page */
 
-.wipeApps {
+.viewWipeApps {
   padding-left: 10px;
   padding-top: 15px;
 }
@@ -155,17 +160,19 @@ html, body, button {
 /* Output, errors log settings */
 
 .appLog p {
+  font-size: 1.2em;
+  color: #039;
   font-weight: bolder;
 }
 .log {
   text-align: left;
-  width: 100%;
   background: black;
   color: white;
+  overflow-x: auto;
 }
 .log pre {
   font-family: "Lucida Console", Monaco, monospace;
-  padding: 5px;
+  padding: 0 5px;
   font-size: 1.0em;
   font-weight: normal;
 }
@@ -173,13 +180,13 @@ html, body, button {
 </style>
 <body>
 
+  <!-- Header //-->
   <div class="AddApp" aling="center">
       <button class="btn" data-bind="click: showApps">Applications</button>
       <button class="btn" data-bind="click: addNewApp">Create App</button>
       <button class="btn" data-bind="click: wipeAppsAsk">Wipe Apps</button>
-      <!-- http://preloaders.net/en/search/pulse //-->
-      <img src="/img/spiffygif.gif" class="pulse" align="right" valign="bottom"
-          data-bind="visible: onAJAX()" />
+      <!-- http://spiffygif.com //-->
+      <img src="/img/spiffygif.gif" align="right" data-bind="visible: onAJAX()" />
   </div>
 
   <!-- Error message box //-->
@@ -187,6 +194,7 @@ html, body, button {
     <p><span data-bind="text: $data"></span></p>
   </div>
 
+  <!-- Applications table //-->
   <div class="listAppsTable" data-bind="visible: chosenListAppsData().length > 0">
     <table id="AppsTable" align="center" data-bind="with: chosenListAppsData">
       <colgroup>
@@ -235,7 +243,7 @@ html, body, button {
     </table>
   </div>
 
-  <!-- Application log data //-->
+  <!-- Application log //-->
   <div class="viewAppLog" data-bind="with: formattedLogs">
     <div class="appLog" align="center" data-bind="visible: stdout">
       <p>Output</p>
@@ -293,8 +301,8 @@ html, body, button {
     </table>
   </div>
 
-  <!-- wipe apps information window //-->
-  <div class="wipeApps" data-bind="visible: onWipeApps">
+  <!-- Wipe applications form //-->
+  <div class="viewWipeApps" data-bind="visible: onWipeApps">
     <h1>Attention!</h1>
     <p>By pressing submit button you are accept to wipe 
        all applications from the server.</p>
