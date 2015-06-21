@@ -27,26 +27,28 @@ html, body, button {
  *   http://www.smashingmagazine.com/2008/08/13/top-10-css-table-designs/
  */
  
-#one-column-emphasis {
+#AppsTable {
+  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+  font-size: 1.0em;
   margin-top: 24px;
   width: 100%;
   max-width: 1024px;
   text-align: left;
   border-collapse: collapse;
 }
-#one-column-emphasis th {
+#AppsTable th, #AppTable th {
 	font-size: 1.2em;
 	font-weight: normal;
 	padding: 12px 15px;
 	color: #039;
 }
-#one-column-emphasis td {
+#AppsTable td {
 	padding: 10px 15px;
 	color: #669;
 	border-top: 1px solid #e8edff;
 	cursor: default;
 }
-#one-column-emphasis tr:hover td {
+#AppsTable tr:hover td {
 	color: #339;
 	background: #eff2ff;
 }
@@ -71,8 +73,8 @@ html, body, button {
 
 /* prevent color changing for links */
 
-#one-column-emphasis tr td a, 
-#one-column-emphasis tr td a:visited {
+#AppsTable tr td a, 
+#AppsTable tr td a:visited {
   color: blue;
 }
 
@@ -96,8 +98,6 @@ html, body, button {
 
 #AppTable th {
   text-align: right;
-  padding: 12px 15px;
-  color: #039;
 }
 
 #AppTable td {
@@ -164,7 +164,7 @@ html, body, button {
 
 /* Add application styles */
 
-.AddApp {
+.AddApp, .wipeApps {
   left: 0;
   right: 0;
   width: 90%;
@@ -185,11 +185,6 @@ html, body, button {
 }
 
 .wipeApps {
-  left: 0;
-  right: 0;
-  width: 90%;
-  margin: 0 auto;
-  max-width: 1024px;
   padding-left: 10px;
   padding-top: 15px;
 }
@@ -212,7 +207,7 @@ html, body, button {
   </div>
 
   <div class="listAppsTable" data-bind="visible: chosenListAppsData().length > 0">
-    <table id="one-column-emphasis" align="center" data-bind="with: chosenListAppsData">
+    <table id="AppsTable" align="center" data-bind="with: chosenListAppsData">
       <colgroup>
         <col width="15%">
         <col width="65%">
