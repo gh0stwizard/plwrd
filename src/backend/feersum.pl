@@ -119,14 +119,23 @@ Creates pool of worker processes.
     my $max_load = &get_setting( 'MAXLOAD' );
     my $max_idle = &get_setting( 'MAXIDLE' )
                 || ( int( $max_proc / 2 ) || 1 );
-    my $start_delay = 0.1;
-    my $idle_period = 60;
+    my $start_delay = 0.5;
+    my $idle_period = 600;
+    
+    my $max_proc_recommended = scalar AnyEvent::Fork::Pool::ncpu( $max_proc );
+    
+    if ( $max_proc > $max_proc_recommended ) {
+      AE::log info => "max proc. for your system is %d, current is %d",
+        $max_proc_recommended,
+        $max_proc
+      ;
+    }
   
     $pool = $PREFORK->require( "Local::Run" )->AnyEvent::Fork::Pool::run
       (
         "Local::Run::execute_logged_safe",
         async => 0, # this type of function does not working async.
-        max   => ( scalar AnyEvent::Fork::Pool::ncpu( $max_proc ) ),
+        max   => $max_proc,
         idle  => $max_idle,
         load  => $max_load,
         start => $start_delay,

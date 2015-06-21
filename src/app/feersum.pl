@@ -97,10 +97,10 @@ sub app {
       
       AE::log trace => "GET request [unescape]: %s", $query;
       
-      if ( $query =~ /^action=runApp&name=([\w\s\-\.\_]{2,16})/o ) {
+      if ( $query =~ /^action=runApp&name=([\w\-\.\_]{2,16})/o ) {
         # run an application
         &run_app( $req, $1 );
-      } elsif ( $query =~ /^action=(\w{3,12})&name=([\w\s\-\.\_]{2,16})/o ) {
+      } elsif ( $query =~ /^action=(\w{3,12})&name=([\w\-\.\_]{2,16})/o ) {
         # applied for actions: getApp, getLogs
         my $w = $req->start_streaming( 200, \@HEADER_JSON );
         $w->write( &retrieve_data( $req, $1, $2 ) );

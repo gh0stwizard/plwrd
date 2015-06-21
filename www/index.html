@@ -17,14 +17,17 @@
 </head>
 <style type="text/css">
 
+html, body, button {
+  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+  font-size: 1.0em;
+}
+
 /* 
  * Table style from
  *   http://www.smashingmagazine.com/2008/08/13/top-10-css-table-designs/
  */
  
 #one-column-emphasis {
-  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
-  font-size: 1.0em;
   margin-top: 24px;
   width: 100%;
   max-width: 1024px;
@@ -53,7 +56,6 @@
  */
 
 .btn {
-  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
   color: #ffffff;
   font-size: 0.85em;
   background: #16167a;
@@ -85,8 +87,6 @@
 /* table for application info */
 
 #AppTable {
-  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
-  font-size: 1.0em;
   margin-top: 45px;
   width: 100%;
   max-width: 1024px;
@@ -111,7 +111,6 @@
 }
 
 #AppTable td input {
-  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
   font-size: 1.2em;
   border: 0;
   padding: 0;
@@ -136,8 +135,6 @@
 /* table for log messages */
 
 #LogTable {
-  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
-  font-size: 1.0em;
   width: 100%;
   max-width: 1024px;
   text-align: left;
@@ -154,7 +151,6 @@
 
 #LogTable td div pre {
   font-family: "Lucida Console", Monaco, monospace;
-  font-size: 1.0em;
   padding: 0 5px;
 }
 
@@ -162,8 +158,6 @@
 /* Output, Errors names settings */
 
 .appLog p {
-  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
-  font-size: 1.0em;
   font-weight: bolder;
 }
 
@@ -190,12 +184,23 @@
   margin-right: 32px;
 }
 
+.wipeApps {
+  left: 0;
+  right: 0;
+  width: 90%;
+  margin: 0 auto;
+  max-width: 1024px;
+  padding-left: 10px;
+  padding-top: 15px;
+}
+
 </style>
 <body>
 
   <div class="AddApp" aling="center">
       <button class="btn" data-bind="click: showApps">Applications</button>
       <button class="btn" data-bind="click: addNewApp">Create App</button>
+      <button class="btn" data-bind="click: wipeAppsAsk">Wipe Apps</button>
       <!-- http://preloaders.net/en/search/pulse //-->
       <img src="/img/pulse2.gif" class="pulse" align="right" valign="bottom"
           data-bind="visible: onAJAX()" />
@@ -206,8 +211,8 @@
     <p><span data-bind="text: $data"></span></p>
   </div>
 
-  <div class="listAppsTable" data-bind="with: chosenListAppsData">
-    <table id="one-column-emphasis" align="center">
+  <div class="listAppsTable" data-bind="visible: chosenListAppsData().length > 0">
+    <table id="one-column-emphasis" align="center" data-bind="with: chosenListAppsData">
       <colgroup>
         <col width="15%">
         <col width="65%">
@@ -325,12 +330,20 @@
       </tbody>
     </table>
   </div>
+  
+  <!-- wipe apps information window //-->
+  <div class="wipeApps" data-bind="visible: onWipeApps">
+    <h1>Attention!</h1>
+    <p>By pressing submit button you are accept to wipe 
+       all applications from the server.</p>
+    <button class="btn" data-bind="click: $root.wipeAppsBtn">Submit</button>
+  </div>
 
 </body>
 <script>
   var suffix = '/plwrd',
       ra = window.location.protocol + '//' + window.location.host + suffix + '?',
-      nameRegex = /^[a-z]([0-9a-z_\s\-\.])+$/i;
+      nameRegex = /^[a-z]([0-9a-z_\-\.])+$/i;
   
   function sortByName( a, b ) {
     return ( a.name == b.name ) ? 0 : ( a.name < b.name ? -1 : 1 );
@@ -352,7 +365,7 @@
   
     // Data
 
-    self.chosenListAppsData = ko.observableArray();
+    self.chosenListAppsData = ko.observableArray( [] );
     self.chosenAppData = ko.observable();
     self.logAppData = ko.observable();
     self.chosenAppDataEdit = ko.observable();
@@ -362,6 +375,7 @@
     self.newAppName = ko.observable();
     self.newAppCmd = ko.observable();
     self.onAJAX = ko.observable();
+    self.onWipeApps = ko.observable();
 
     self.errors = [
       'Connection error',
@@ -422,6 +436,26 @@
     
     self.editApp = function( app ) {
       location.hash = 'edit' + '/' + app.name;
+    };
+    
+    self.wipeAppsAsk = function () {
+      location.hash = 'wipe/apps';
+    };
+    
+    self.wipeAppsBtn = function () {
+      postJSON( suffix,
+        { 
+          action: 'wipeApps'
+        },
+        function ( data ) {
+          if ( data.err ) {
+            self.errorMessage( self.errors[ data.err ] );
+          } else {
+            // get back to main page
+            hasher.setHash( '' );
+          }
+        }
+      );      
     };
 
     self.removeApp = function ( app )  {
@@ -511,13 +545,14 @@
     // Helpers
     
     function cleanAll () {
-      self.chosenListAppsData( null );
+      self.chosenListAppsData( [] );
       self.chosenAppData( null );
       self.logAppData( null );
       self.chosenAppDataEdit( null );
       self.commandStatus( null );
       self.onCreateApp( null );
       self.errorMessage( null );
+      self.onWipeApps( null );
     }
     
     function getJSON ( url, cb ) {
@@ -638,6 +673,13 @@
       cleanAll();
       self.onCreateApp( true );
     }
+    
+    function wipe ( name ) {
+      if ( name == 'apps' ) {
+        cleanAll();
+        self.onWipeApps( true );
+      }
+    }
 
     
     // Setup routers
@@ -648,7 +690,7 @@
     var actionsRouter = crossroads.addRoute( '{action}/{name}' );
     
     actionsRouter.matched.add( function( action, name ) {
-      self.chosenListAppsData( null );
+      self.chosenListAppsData( [] );
       self.logAppData( null );
       self.chosenAppDataEdit( null );
     
@@ -662,6 +704,9 @@
           break;
         case 'run':
           runApp( name );
+          break;
+        case 'wipe':
+          wipe( name );
           break;
         default:
           listApps();
@@ -680,6 +725,7 @@
         self.commandStatus( null );
         self.onCreateApp( null );
         self.errorMessage( null );
+        self.onWipeApps( null);
       }
       
       crossroads.parse( newHash );
