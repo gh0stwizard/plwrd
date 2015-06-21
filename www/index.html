@@ -22,6 +22,10 @@ html, body, button {
   font-size: 1.0em;
 }
 
+table {
+  width: 100%;
+}
+
 /* 
  * Table style from
  *   http://www.smashingmagazine.com/2008/08/13/top-10-css-table-designs/
@@ -30,9 +34,7 @@ html, body, button {
 #AppsTable {
   font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
   font-size: 1.0em;
-  margin-top: 24px;
-  width: 100%;
-  max-width: 1024px;
+  margin-top: 15px;
   text-align: left;
   border-collapse: collapse;
 }
@@ -90,7 +92,6 @@ html, body, button {
 
 #AppTable {
   margin-top: 15px;
-  width: 100%;
   text-align: left;
   border-collapse: collapse;
 }
@@ -130,13 +131,14 @@ html, body, button {
 .viewWipeApps,
 .appLog,
 .viewApp,
+.viewApps,
 .viewAddApp,
 .viewEditApp {
   left: 0;
   right: 0;
   width: 90%;
   margin: 0 auto;
-  max-width: 1024px;
+  max-width: 1280px;
 }
 .AddApp button {
   margin-left: 18px;
@@ -195,7 +197,7 @@ html, body, button {
   </div>
 
   <!-- Applications table //-->
-  <div class="listAppsTable" data-bind="visible: chosenListAppsData().length > 0">
+  <div class="viewApps" data-bind="visible: chosenListAppsData().length > 0">
     <table id="AppsTable" align="center" data-bind="with: chosenListAppsData">
       <colgroup>
         <col width="15%">
