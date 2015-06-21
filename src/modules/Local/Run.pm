@@ -7,9 +7,10 @@ use strict;
 use warnings;
 use AnyEvent::Log;
 use POSIX qw( :signal_h );
+use Proc::FastSpawn;
 
 
-our $VERSION = '1.006'; $VERSION = eval "$VERSION";
+our $VERSION = '1.007'; $VERSION = eval "$VERSION";
 
 
 =encoding utf-8
@@ -103,7 +104,9 @@ Calls a callback $cb when executing a program is finished.
 
 
 sub execute_logged_safe(@) {
-  AE::log trace => "execute_logged_safe():\n@_";
+  my %arg = @_;
+  AE::log trace => "execute_logged_safe(): ";
+  AE::log trace => " %s = %s", $_, $arg{ $_ } for keys %arg;
 
   &exec_cmd_logged_safe( @_ );
 }
@@ -179,7 +182,8 @@ sub exec_cmd_logged(%) {
   qx( $do 1>$stdout 2>$stderr );
   my $rv = $?;
   
-  AE::log trace => "$do 1>$stdout 2>$stderr %s",
+  AE::log trace => "%s %s [%d]",
+    $do,
     ( $rv ) ? 'failed' : 'completed successfully',
     $rv
   ;
@@ -236,34 +240,84 @@ sub exec_cmd_logged_safe(%) {
   my $stderr = $setup{ 'stderr' } || '/dev/null';
   my $timeout = $setup{ 'timeout' } || 10;
   my $rv;
+  my $pid;
   
-  local $@;
-  local $SIG{__DIE__} = sub {
+  local $@, $SIG{__DIE__} = sub {
     my $msg = "$_[0]";
     
     if ( $msg =~ /^::timeout::/o ) {
       AE::log trace => $msg;
       # write an error message to log file
-      $msg = "killed because of execution timeout ($timeout)";
+      $msg = sprintf
+        (
+          "PID = %d killed because of execution timeout (%d)",
+          $pid,
+          $timeout,
+        )
+      ;
     }
 
     # write error message to logfile
     &_write_msg_file( $stderr, $msg );
     
+    if ( $pid ) {
+      kill 'TERM', $pid;
+      waitpid $pid, 0;
+    }
+    
     # remove SIGDIE handler
     $SIG{__DIE__} = undef;
-    # an command execution has failed
+    
+    # mark that error has occured
     $rv = 1;
-  };    
+  };
   
   my $sa = &set_sa();
 
   sigaction( SIGALRM, $sa->{ 'a' }, $sa->{ 'o' } );
 
+  #
+  # Using the 'exec' to changing PID may be a bad idea.
+  # An investigation shows that proper killing
+  # child processes requires more job to be done.
+  #
+  # Working solution found here:
+  #  http://veithen.github.io/2014/11/16/sigterm-propagation.html
+  #
+  #
+  # We should create a script file containing next lines:
+  #
+  #  #!/bin/sh
+  #
+  #  trap 'kill -TERM $PID' TERM INT
+  #  $TARGET_COMMAND $ARGS &
+  #  PID=$!
+  #  wait $PID
+  #  trap - TERM INT
+  #  wait $PID
+  #
+  # After that execute it: /bin/sh script.sh
+  #
+  
+  my @envp =
+    (
+      'PATH=/bin:/sbin:/usr/bin:/usr/sbin',
+      'HOME=/',
+      'SHELL=/bin/sh',
+    )
+  ;
+
   eval {
     eval {
       alarm $timeout;
-      qx( $do 1>$stdout 2>$stderr );
+      $pid = spawn
+        (
+          '/bin/sh',
+          [ '/bin/sh', '-c', "exec $do 1>$stdout 2>$stderr" ],
+          \@envp,
+        ) || die "failed to spawn a process"
+      ;
+      waitpid $pid, 0;
       $rv = $?;
     };
     
@@ -273,9 +327,10 @@ sub exec_cmd_logged_safe(%) {
   
   sigaction( SIGALRM, $sa->{ 'o' } );
   
-  AE::log trace => "$do 1>$stdout 2>$stderr %s [%d]",
+  AE::log trace => "command = %s, status = %d (%s)",
+    $do,
+    $rv,
     ( $rv ) ? 'failed' : 'completed successfully',
-    $rv
   ;
   
   return ( $rv == 0 );
@@ -325,9 +380,13 @@ sub set_sa() {
   # POSIX sigaction
   $settings{ 'm' } = POSIX::SigSet->new( SIGALRM );
   $settings{ 'a' } = POSIX::SigAction->new
-  (
-    sub { die "::timeout::"; }, $settings{ 'm' }
-  );
+    (
+      sub {
+        die "::timeout::";
+      },
+      $settings{ 'm' }
+    )
+  ;
   $settings{ 'o' } = POSIX::SigAction->new();
 
   return \%settings;
