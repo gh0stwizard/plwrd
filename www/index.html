@@ -200,9 +200,19 @@
       <img src="/img/pulse2.gif" class="pulse" align="right" valign="bottom"
           data-bind="visible: onAJAX()" />
   </div>
+ 
+  <!-- Error message box //-->
+  <div class="errorBox" data-bind="with: errorMessage">
+    <p><span data-bind="text: $data"></span></p>
+  </div>
 
   <div class="listAppsTable" data-bind="with: chosenListAppsData">
     <table id="one-column-emphasis" align="center">
+      <colgroup>
+        <col width="15%">
+        <col width="65%">
+        <col><col><col><col>
+      </colgroup>
       <thead>
         <tr>
           <th>Name</th>
@@ -225,11 +235,6 @@
         </tr>
       </tbody>
     </table>
-  </div>
-
-  <!-- Error message box //-->
-  <div class="errorBox" data-bind="with: errorMessage">
-    <p><span data-bind="text: $data"></span></p>
   </div>
 
   <!-- Application information data //-->
@@ -325,7 +330,7 @@
 <script>
   var suffix = '/plwrd',
       ra = window.location.protocol + '//' + window.location.host + suffix + '?',
-      nameRegex = /^[a-z]([0-9a-z_\s])+$/i;
+      nameRegex = /^[a-z]([0-9a-z_\s\-\.])+$/i;
   
   function sortByName( a, b ) {
     return ( a.name == b.name ) ? 0 : ( a.name < b.name ? -1 : 1 );
