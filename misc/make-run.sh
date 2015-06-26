@@ -2,7 +2,7 @@
 
 export PERL5LIB=../src/modules
 
-APP_PATH="bin/plcrtd"
+APP_PATH="bin/plwrd"
 PERL="perl"
 
 find ../src -regextype posix-extended -regex '.*.(pl|pm)$' | \
