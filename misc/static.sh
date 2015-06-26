@@ -16,8 +16,8 @@ else
 	exit 1
 fi
 
-if [ ! -d "bin" ]; then
-	mkdir bin || exit 1
+if [ ! -d ${BIN_DIR} ]; then
+	mkdir ${BIN_DIR} || exit 1
 fi
 
 ${SP_FILE} mkapp ${BIN_DIR}/$APPNAME --boot ${BOOT_FILE} \
